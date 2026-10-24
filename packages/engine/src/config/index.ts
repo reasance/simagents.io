@@ -453,6 +453,10 @@ export const CONFIG = {
     decisionTimeoutMs: env('ENGINE_DECISION_TIMEOUT_MS', 60000),
     /** Minimum simulated time between decision starts for a single agent */
     minDecisionIntervalMs: env('ENGINE_MIN_DECISION_INTERVAL_MS', 1000),
+    /** Consecutive failed decisions after which an agent is left unresponsive */
+    maxConsecutiveDecisionFailures: env('ENGINE_MAX_DECISION_FAILURES', 3),
+    /** Wall-clock wait before the first retry after a rate limit or outage; doubles each time */
+    decisionRetryBaseMs: env('ENGINE_DECISION_RETRY_BASE_MS', 2000),
     /** Simulated interval between housekeeping runs */
     heartbeatIntervalMs: env('ENGINE_HEARTBEAT_INTERVAL_MS', 1000),
   },
@@ -968,6 +972,8 @@ export interface RuntimeConfigOverrides {
     decisionTimeoutMs?: number;
     minDecisionIntervalMs?: number;
     heartbeatIntervalMs?: number;
+    maxConsecutiveDecisionFailures?: number;
+    decisionRetryBaseMs?: number;
   };
   durations?: {
     defaultMs?: number;

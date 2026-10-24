@@ -87,7 +87,7 @@ type WorkerMessage =
   | { type: 'export'; snapshot: WorldSnapshotV1; events: WorldEvent[] }
   | { type: 'replayFrame'; frame: StoredReplayFrame }
   | { type: 'response'; requestId: string; payload: unknown }
-  | { type: 'warning'; message: string }
+  | { type: 'warning'; message: string; issue?: unknown }
   | { type: 'error'; message: string; requestId?: string; issue?: AppIssue };
 
 export interface StoredReplayFrame {
@@ -437,7 +437,7 @@ export class EngineClient {
       case 'warning':
         console.warn('[EngineWorker]', message.message);
         for (const listener of this.warningListeners) {
-          const issue = errorIssue(message.message);
+          const issue = isAppIssue(message.issue) ? message.issue : errorIssue(message.message);
           listener(formatIssue(issue), issue);
         }
         break;

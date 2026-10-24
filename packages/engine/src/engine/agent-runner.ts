@@ -10,6 +10,10 @@ import { agentRng, type RandomSource } from '../utils/random';
 import { materializeVitals } from './vitals';
 import { getAgentBusyUntil } from './agent-meta';
 import { tickFromSimTime } from './time';
+import { ProviderRequestError, type ProviderErrorCode } from './llm/provider-error';
+import { appendEvent } from '../engine-memory/queries/events';
+import { publishEvent } from '../engine-memory/bus';
+import { v4 as uuid } from 'uuid';
 import type { ActionExecutor } from './executor';
 import {
   type ActionDecision,
@@ -31,7 +35,27 @@ export interface AgentRunnerOptions {
   provider: DecisionProvider;
   executor: ActionExecutor;
   host: AgentRunnerHost;
+  /** Called once when this agent stops deciding; the world keeps running. */
+  onUnresponsive?: (agentId: string, reason: DecisionFailureCode) => void;
 }
+
+export class DecisionTimeoutError extends Error {
+  constructor(timeoutMs: number) { super(`Decision timed out after ${timeoutMs}ms`); this.name = 'DecisionTimeoutError'; }
+}
+
+export type DecisionFailureCode = ProviderErrorCode | 'timeout';
+
+/** Provider failures stay with the agent; anything else (session limits, relay, bugs) still stops the world. */
+function decisionFailureCode(error: unknown): DecisionFailureCode | undefined {
+  if (error instanceof DecisionTimeoutError) return 'timeout';
+  if (error instanceof ProviderRequestError) return error.code;
+  return undefined;
+}
+
+/** Credentials and quota will not fix themselves; other failures cost the agent a turn. */
+const TERMINAL_FAILURES: ReadonlySet<DecisionFailureCode> = new Set(['credentials', 'quota']);
+/** Failures worth waiting out before the next attempt. */
+const BACKOFF_FAILURES: ReadonlySet<DecisionFailureCode> = new Set(['rate-limit', 'unavailable', 'network']);
 
 export class AgentRunner {
   readonly agentId: string;
@@ -42,6 +66,7 @@ export class AgentRunner {
   private thinking = false;
   private stopped = false;
   private lastDecisionStartedAt: number | undefined;
+  private consecutiveFailures = 0;
 
   constructor(private readonly options: AgentRunnerOptions) {
     this.agentId = options.agentId;
@@ -116,11 +141,17 @@ export class AgentRunner {
         const decisionStartedAt = this.options.host.nowMs();
         this.lastDecisionStartedAt = decisionStartedAt;
         const observation = await this.buildObservation(freshAgent);
-        const { decision, usedFallback, processingTimeMs } = await this.decide(
-          freshAgent,
-          observation,
-          signal
-        );
+        let outcome: Awaited<ReturnType<AgentRunner['decide']>>;
+        try {
+          outcome = await this.decide(freshAgent, observation, signal);
+        } catch (error) {
+          const code = decisionFailureCode(error);
+          if (signal.aborted || !code) throw error;
+          if (!(await this.recordFailure(freshAgent.id, code, signal))) break;
+          continue;
+        }
+        this.consecutiveFailures = 0;
+        const { decision, usedFallback, processingTimeMs } = outcome;
         if (signal.aborted) break;
 
         await this.options.host.waitWhilePaused(signal);
@@ -219,7 +250,7 @@ export class AgentRunner {
     });
     const timeoutPromise = this.options.host.sleepWall(timeoutMs, controller.signal).then(() => {
       controller.abort();
-      throw new Error(`Decision timed out after ${timeoutMs}ms`);
+      throw new DecisionTimeoutError(timeoutMs);
     });
 
     try {
@@ -236,6 +267,37 @@ export class AgentRunner {
       providerPromise.catch(() => undefined);
       timeoutPromise.catch(() => undefined);
     }
+  }
+
+  /**
+   * Record a failed decision. Returns true when the agent should try again,
+   * false when it is left unresponsive (it stays in the world and its body
+   * keeps changing with time).
+   */
+  private async recordFailure(agentId: string, code: DecisionFailureCode, signal: AbortSignal): Promise<boolean> {
+    this.consecutiveFailures++;
+    const engine = getRuntimeConfig().engine;
+    const giveUp = TERMINAL_FAILURES.has(code) || this.consecutiveFailures >= engine.maxConsecutiveDecisionFailures;
+    await this.emit(agentId, 'agent_decision_failed', { code, consecutiveFailures: this.consecutiveFailures, willRetry: !giveUp });
+    if (giveUp) {
+      await this.emit(agentId, 'agent_unresponsive', { code });
+      this.options.onUnresponsive?.(agentId, code);
+      return false;
+    }
+    if (BACKOFF_FAILURES.has(code)) {
+      await this.options.host.sleepWall(engine.decisionRetryBaseMs * 2 ** (this.consecutiveFailures - 1), signal);
+    }
+    return true;
+  }
+
+  private async emit(agentId: string, type: string, payload: Record<string, unknown>): Promise<void> {
+    await this.options.executor.mutate(async () => {
+      const simTimeMs = this.options.host.nowMs();
+      const tick = tickFromSimTime(simTimeMs);
+      const data = { ...payload, simTimeMs };
+      await appendEvent({ tick, agentId, eventType: type, payload: data });
+      await publishEvent({ id: uuid(), agentId, type, tick, timestamp: Date.now(), payload: data });
+    });
   }
 
   private intentFor(agentId: string, decision: ActionDecision): ActionIntent {

@@ -298,6 +298,11 @@ async function init(payload: InitPayload): Promise<void> {
         postError(error);
         postState();
       },
+      onAgentUnresponsive: (agentId, reason) => {
+        const agent = engine?.getState().agents.find((candidate) => candidate.id === agentId);
+        const issue = { code: 'AGENT_UNRESPONSIVE' as const, parameters: { agent: agent?.name ?? agentId, reason } };
+        send({ type: 'warning', message: `${issue.parameters.agent} stopped deciding (${reason})`, issue });
+      },
     });
 
   let resumeSnapshot: WorldSnapshotV1 | undefined;

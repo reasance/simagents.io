@@ -97,7 +97,7 @@ export const runtimeOverridesSchema = partial({
   agent: partial({ startingBalance: amount, startingHunger: needs, startingEnergy: needs, startingHealth: needs }),
   needs: partial(numbers(['hungerDecay', 'energyDecay', 'lowHungerThreshold', 'criticalHungerThreshold', 'lowEnergyThreshold', 'criticalEnergyThreshold'], needs)),
   llmCache: partial({ enabled: z.boolean(), ttlSeconds: amount, shareAcrossAgents: z.boolean() }),
-  engine: partial({ decisionTimeoutMs: positiveCount, minDecisionIntervalMs: amount, heartbeatIntervalMs: positiveCount }),
+  engine: partial({ decisionTimeoutMs: positiveCount, minDecisionIntervalMs: amount, heartbeatIntervalMs: positiveCount, maxConsecutiveDecisionFailures: positiveCount, decisionRetryBaseMs: amount }),
   durations: partial(numbers(durations)),
   actions: partial({
     move: partial(numbers(['energyCost', 'hungerCost', 'consecutivePenalty'])),

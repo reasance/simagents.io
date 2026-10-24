@@ -46,6 +46,7 @@ export const ERROR_TEXT = {
   BYOK_PROVIDER_MISMATCH: '{agent}: provider and connection do not match.',
   BYOK_KEY: '{agent}: enter or unlock the connection credential.',
   BYOK_MODEL: '{agent}: select a model.',
+  AGENT_UNRESPONSIVE: '{agent} stopped deciding after provider failures ({reason}) and stays in the world; the other agents continue. Start the session again to retry it.',
   BYOK_CONFIGURATION: '{agent}: invalid connection or model configuration.',
   BYOK_MIGRATION: '{agent}: convert provider settings to a connection profile and verify the model.',
   BYOK_PROVIDER_KEY: '{agent}: enter or unlock the {provider} API key.',

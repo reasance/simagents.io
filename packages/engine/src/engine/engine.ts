@@ -176,6 +176,8 @@ export interface SimEngineOptions {
    * so hosts should surface these (e.g. postMessage an error to the UI).
    */
   onError?: (error: unknown, context: string) => void;
+  /** Called when one agent stops deciding after provider failures; the world keeps running. */
+  onAgentUnresponsive?: (agentId: string, reason: string) => void;
 }
 
 export type EngineLifecycle = 'initialized' | 'running' | 'paused' | 'stopped' | 'error';
@@ -205,9 +207,13 @@ export class SimEngine implements AgentRunnerHost {
   private timer: ReturnType<typeof setInterval> | undefined;
   private lastHeartbeatMs = 0;
   private readonly onError?: (error: unknown, context: string) => void;
+  private readonly onAgentUnresponsive?: (agentId: string, reason: string) => void;
+  /** Agents left unresponsive in this session; an explicit start gives them another chance. */
+  private readonly unresponsive = new Set<string>();
 
   constructor(options: SimEngineOptions = {}) {
     this.onError = options.onError;
+    this.onAgentUnresponsive = options.onAgentUnresponsive;
     this.clock = new SimClock({
       simTimeMs: options.simTimeMs ?? 0,
       speed: options.speed ?? DEFAULT_SIM_SPEED,
@@ -234,6 +240,7 @@ export class SimEngine implements AgentRunnerHost {
 
   async hydrate(snapshot: WorldSnapshotV1): Promise<void> {
     snapshot = validateWorldSnapshotV1(snapshot);
+    this.unresponsive.clear();
     this.stopRuntime();
     this.scheduler.reset();
     await this.executor.onDrain();
@@ -261,6 +268,7 @@ export class SimEngine implements AgentRunnerHost {
   }
 
   async start(): Promise<void> {
+    this.unresponsive.clear();
     this.resume();
     try { await this.syncRunners(); } catch (error) { this.fail(); throw error; }
     if (this.lifecycle !== 'running') return;
@@ -294,6 +302,7 @@ export class SimEngine implements AgentRunnerHost {
   }
 
   async reset(): Promise<void> {
+    this.unresponsive.clear();
     this.stopRuntime();
     this.scheduler.reset();
     await this.executor.onDrain();
@@ -402,7 +411,7 @@ export class SimEngine implements AgentRunnerHost {
     pruneAgentRng(aliveIds);
 
     for (const agent of aliveAgents) {
-      if (this.runners.has(agent.id)) continue;
+      if (this.runners.has(agent.id) || this.unresponsive.has(agent.id)) continue;
 
       const provider = this.providerFactory(agent, {
         sleepWall: (wallMs, signal) => this.sleepWall(wallMs, signal),
@@ -413,6 +422,10 @@ export class SimEngine implements AgentRunnerHost {
         provider,
         executor: this.executor,
         host: this,
+        onUnresponsive: (agentId, reason) => {
+          this.unresponsive.add(agentId);
+          this.onAgentUnresponsive?.(agentId, reason);
+        },
       });
       this.runners.set(agent.id, runner);
       runner.start().catch((error) => {
