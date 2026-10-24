@@ -31,6 +31,7 @@ import { handleRevokeCredential } from './handlers/revoke-credential';
 import { handleSpreadGossip } from './handlers/spread-gossip';
 import { handleSpawnOffspring } from './handlers/spawn-offspring';
 import { handleSignal } from './handlers/signal';
+import { handleSpeak } from './handlers/speak';
 // Employment System
 import { handleOfferJob } from './handlers/offer-job';
 import { handleAcceptJob } from './handlers/accept-job';
@@ -77,6 +78,7 @@ handlers.set('spread_gossip', handleSpreadGossip as ActionHandler);
 // Phase 4: Reproduction (§36)
 handlers.set('spawn_offspring', handleSpawnOffspring as ActionHandler);
 handlers.set('signal', handleSignal as ActionHandler);
+handlers.set('speak', handleSpeak as ActionHandler);
 // Employment System
 handlers.set('offer_job', handleOfferJob as ActionHandler);
 handlers.set('accept_job', handleAcceptJob as ActionHandler);

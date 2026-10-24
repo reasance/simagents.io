@@ -304,6 +304,9 @@ When you decide to act, respond with ONLY a JSON object:
 - fire_worker: Terminate a worker's employment. Params: { "employmentId": string }
 - cancel_job_offer: Cancel a job offer you posted. Params: { "jobOfferId": string }
 
+**Speech**
+- speak: Say something aloud; everyone within earshot hears it. Params: { "message": string, "to"?: "<agent id within earshot>" }
+
 **Self Care**
 - consume: Use something from your possession. Params: { "itemType": "food"|"water"|"medicine" }
 - sleep: Rest your body. Params: { "duration": 1-10 }
@@ -459,6 +462,19 @@ export function buildEmergentObservationPrompt(obs: AgentObservation): string {
         inventoryHint = ' — seems to be carrying something';
       }
       lines.push(`- Agent ${agent.id} stands ${distanceWord}${relInfo}${inventoryHint}`);
+    }
+  }
+
+  // Speech within earshot, oldest first. Quoted verbatim: the engine never interprets it.
+  if (obs.conversation && obs.conversation.length > 0) {
+    lines.push('');
+    lines.push('**What You Have Heard and Said** (oldest first)');
+    for (const line of obs.conversation) {
+      const ago = Math.max(0, obs.tick - line.tick);
+      const when = ago === 0 ? 'just now' : `${ago} min ago`;
+      const who = line.spokenByYou ? 'You' : `Agent ${line.speakerId}`;
+      const addressee = line.to === null ? '' : line.to === obs.self.id ? ' to you' : ` to Agent ${line.to}`;
+      lines.push(`- [${when}] ${who} said${addressee}: ${JSON.stringify(line.message)}`);
     }
   }
 

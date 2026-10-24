@@ -48,6 +48,7 @@ const fixtures = {
   deceive: { params: { targetAgentId: 'b', claim: 'A resource nearby', claimType: 'resource_location' }, missing: 'targetAgentId' },
   share_info: { params: { targetAgentId: 'b', subjectAgentId: 'c', infoType: 'location', position: { x: 0, y: 0 } }, missing: 'targetAgentId' },
   signal: { params: { message: 'hello', intensity: 1 } },
+  speak: { params: { message: 'Is there water near here?', to: 'b' }, missing: 'to', free: 'Speaking needs no inventory, energy or money.' },
   issue_credential: { params: { subjectAgentId: 'b', claimType: 'skill', description: 'A demonstrated skill' }, missing: 'subjectAgentId' },
   revoke_credential: { params: { credentialId: 'credential' }, missing: 'credentialId', prepare: async () => { await createCredential({ id: 'credential', tick: 0, issuerId: 'a', issuerSignature: 'fixture', subjectId: 'b', claimType: 'skill', claimDescription: 'fixture' }); }, free: 'Revocation needs the issuing identity, not inventory or money.' },
   spread_gossip: { params: { targetAgentId: 'b', subjectAgentId: 'c', topic: 'skill', claim: 'Useful skill', sentiment: 1 }, missing: 'targetAgentId' },
@@ -131,6 +132,12 @@ const outcomes = {
   } },
   share_info: { events: ['agent_shared_info'], delta: { energy: -1 }, effects() {
     expect([...store.agentKnowledge.values()]).toContainEqual(expect.objectContaining({ agentId: 'b', knownAgentId: 'c', discoveryType: 'referral', referredById: 'a' }));
+  } },
+  speak: { events: ['agent_spoke', 'agent_heard', 'agent_heard'], delta: {}, effects() {
+    const heard = store.events.filter(e => e.eventType === 'agent_heard');
+    expect(heard.map(e => e.agentId).sort()).toEqual(['b', 'c']);
+    expect(heard.find(e => e.agentId === 'b')!.payload).toMatchObject({ speakerId: 'a', message: 'Is there water near here?', addressedToListener: true });
+    expect(heard.find(e => e.agentId === 'c')!.payload).toMatchObject({ addressedToListener: false });
   } },
   signal: { events: ['agent_signaled'], delta: { energy: -5 }, effects() {
     expect(store.events.at(-1)!.payload).toMatchObject({ message: 'hello', intensity: 1, range: 10 });

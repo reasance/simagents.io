@@ -29,6 +29,7 @@ export type ActionType =
   // Phase 2: Social Discovery
   | 'share_info'
   | 'signal' // Long-range communication
+  | 'speak' // Free speech heard by everyone within earshot
   // Phase 4: Verifiable Credentials (§34)
   | 'issue_credential'
   | 'revoke_credential'
@@ -186,6 +187,13 @@ export interface SignalParams {
   intensity: number; // 1-5, affects range
 }
 
+// Speech Parameters (local, free text)
+
+export interface SpeakParams {
+  message: string; // Free text, heard by every agent within earshot
+  to?: string; // Optional addressee; must be within earshot
+}
+
 // Employment System Parameters
 
 export interface OfferJobParams {
@@ -268,6 +276,7 @@ export type ActionParams =
   | DeceiveParams
   | ShareInfoParams
   | SignalParams
+  | SpeakParams
   // Phase 4
   | IssueCredentialParams
   | RevokeCredentialParams

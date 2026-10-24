@@ -990,6 +990,12 @@ export function buildAvailableActions(obs: AgentObservation): AvailableAction[] 
     });
   }
 
+  // Speaking is always possible; whoever is within earshot hears it.
+  actions.push({
+    type: 'speak',
+    description: 'Say something aloud to whoever is within earshot',
+  });
+
   // Sleep is available if not already sleeping
   if (obs.self.state !== 'sleeping') {
     actions.push({

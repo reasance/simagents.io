@@ -263,6 +263,8 @@ export function actionDurationMs(
       return durations.shareInfoMs;
     case 'signal':
       return durations.signalMs;
+    case 'speak':
+      return durations.speakMs;
     case 'harm':
       return durations.harmMs;
     case 'steal':

@@ -87,6 +87,8 @@ export interface AgentObservation {
   scents?: ScentTrace[];
   /** Nearby signals heard (long-range) */
   signals?: SignalHeard[];
+  /** Recent utterances this agent said or heard, oldest first */
+  conversation?: ConversationLine[];
 
   // Puzzle Game System (Fragment Chase)
   /** Active puzzle games available to join */
@@ -257,6 +259,15 @@ export interface ScentTrace {
   y: number;
   strength: 'strong' | 'weak' | 'faint';
   agentId?: string;
+}
+
+export interface ConversationLine {
+  tick: number;
+  speakerId: string;
+  spokenByYou: boolean;
+  /** Addressee chosen by the speaker, if any */
+  to: string | null;
+  message: string;
 }
 
 export interface SignalHeard {

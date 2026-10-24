@@ -12,8 +12,8 @@ const VALID_ACTIONS: ActionType[] = [
   'move', 'buy', 'consume', 'sleep', 'work', 'gather', 'trade',
   // Survival fallbacks (always available)
   'forage', 'public_work',
-  // Long-range communication
-  'signal',
+  // Communication
+  'signal', 'speak',
   // Phase 1: Emergence Observation
   'claim', 'name_location',
   // Phase 2: Conflict Actions

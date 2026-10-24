@@ -23,6 +23,7 @@ import type {
   KnownAgentEntry,
   ScentTrace,
   SignalHeard,
+  ConversationLine,
   NearbyJobOffer,
   ActiveEmployment,
   OpenJobOffer,
@@ -40,7 +41,7 @@ import { getRecentMemories, getAgentRelationships } from '../db/queries/memories
 import { getKnownAgentsForObserver, type SharedInfo } from '../db/queries/knowledge';
 import { getNearbyClaims } from '../db/queries/claims';
 import { getNearbyNamedLocations, getLocationNamesForObserver } from '../db/queries/naming';
-import { getRecentSignals } from '../db/queries/events';
+import { getConversationForAgent, getRecentSignals } from '../db/queries/events';
 import { getScentsAt, calculateScentStrength } from '../world/scent';
 import {
   getOpenJobOffersNearPosition,
@@ -56,7 +57,7 @@ import {
   getParticipant,
   getAgentActivePuzzleGame,
 } from '../db/queries/puzzles';
-import { CONFIG } from '../config';
+import { CONFIG, getRuntimeConfig } from '../config';
 import { isBlackoutActive } from '../simulation/shocks';
 import { isPersonalityEnabled, isValidPersonality, type PersonalityTrait } from './personalities';
 
@@ -306,6 +307,20 @@ export async function buildObservation(
     }
   }
 
+  // Speech: everything this agent said or heard, as raw utterances.
+  const rawConversation = await getConversationForAgent(agent.id, getRuntimeConfig().actions.speak.conversationWindow);
+  const conversation: ConversationLine[] = rawConversation.flatMap((event) => {
+    const payload = event.payload as Record<string, unknown>;
+    if (typeof payload?.message !== 'string') return [];
+    const spokenByYou = event.eventType === 'agent_spoke';
+    const speakerId = spokenByYou ? agent.id : payload.speakerId;
+    if (typeof speakerId !== 'string') return [];
+    const to = spokenByYou
+      ? (typeof payload.to === 'string' ? payload.to : null)
+      : (payload.addressedToListener === true ? agent.id : null);
+    return [{ tick: event.tick, speakerId, spokenByYou, to, message: payload.message }];
+  });
+
   // Employment System: Job offers, active contracts, own postings
   // Only query if agent.id is a valid UUID (skip for mock agents in tests)
   const isValidUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(agent.id);
@@ -493,6 +508,7 @@ export async function buildObservation(
     knownAgents,
     scents,
     signals,
+    conversation,
     // Employment System
     nearbyJobOffers,
     activeEmployments,

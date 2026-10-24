@@ -99,6 +99,8 @@ export const EVENT_REGISTRY: Record<string, EventTypeDefinition> = {
   agent_shared_info: { category: 'emergent', description: 'Agent shared information with another' },
   agent_spread_gossip: { category: 'emergent', description: 'Agent spread gossip about another' },
   agent_signaled: { category: 'emergent', description: 'Agent sent a long-range signal' },
+  agent_spoke: { category: 'emergent', description: 'Agent said something within earshot of others' },
+  agent_heard: { category: 'emergent', description: 'Agent heard what a nearby agent said' },
 
   // Claims and naming
   agent_claimed: { category: 'emergent', description: 'Agent made a territorial claim' },

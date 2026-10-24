@@ -27,6 +27,7 @@ const schemas: Record<ActionType, z.ZodObject> = {
   deceive: z.object({ targetAgentId: id, claim: text, claimType: z.enum(['resource_location', 'agent_reputation', 'danger_warning', 'trade_offer', 'other']) }),
   share_info: z.object({ targetAgentId: id, subjectAgentId: id, infoType: z.enum(['location', 'reputation', 'warning', 'recommendation']), claim: text.optional(), sentiment: sentiment.optional(), position: z.object({ x: coordinate, y: coordinate }).optional() }),
   signal: z.object({ message: text, intensity: z.number().finite().int().min(1).max(5) }),
+  speak: z.object({ message: z.string().trim().min(1).max(getRuntimeConfig().actions.speak.maxLength), to: id.optional() }),
   issue_credential: z.object({ subjectAgentId: id, claimType: z.enum(['skill', 'experience', 'membership', 'character', 'custom']), description: text, evidence: text.optional(), level: ticks.max(10).optional(), expiresAtTick: ticks.optional() }),
   revoke_credential: z.object({ credentialId: id }),
   spread_gossip: z.object({ targetAgentId: id, subjectAgentId: id, topic: z.enum(['skill', 'behavior', 'transaction', 'warning', 'recommendation']), claim: text, sentiment, evidenceEventId: ticks.optional() }),

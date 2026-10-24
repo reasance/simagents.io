@@ -68,6 +68,15 @@ export const CONFIG = {
       scentDurationTicks: env('SCENT_DURATION_TICKS', 20),
     },
 
+    speak: {
+      /** Manhattan distance within which every agent hears what is said */
+      hearingRadius: env('SPEAK_HEARING_RADIUS', 6),
+      /** Maximum characters per utterance */
+      maxLength: env('SPEAK_MAX_LENGTH', 500),
+      /** Utterances (said or heard) included in each observation */
+      conversationWindow: env('SPEAK_CONVERSATION_WINDOW', 12),
+    },
+
     signal: {
       /** Base energy cost for signaling */
       energyCost: env('SIGNAL_ENERGY_COST', 5),
@@ -462,6 +471,7 @@ export const CONFIG = {
     consumeMs: env('ACTION_DURATION_CONSUME_MS', 5000),
     shareInfoMs: env('ACTION_DURATION_SHARE_INFO_MS', 5000),
     signalMs: env('ACTION_DURATION_SIGNAL_MS', 5000),
+    speakMs: env('ACTION_DURATION_SPEAK_MS', 5000),
     harmMs: env('ACTION_DURATION_HARM_MS', 10000),
     stealMs: env('ACTION_DURATION_STEAL_MS', 10000),
   },

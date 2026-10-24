@@ -62,6 +62,14 @@ export async function getRecentSignals(tick: number): Promise<Event[]> {
   return store.events.filter((e) => e.eventType === 'agent_signaled' && e.tick >= tick - 1);
 }
 
+/** What an agent said or heard, oldest first, capped to the most recent `limit` utterances. */
+export async function getConversationForAgent(agentId: string, limit: number): Promise<Event[]> {
+  return store.events
+    .filter((e) => e.agentId === agentId && (e.eventType === 'agent_spoke' || e.eventType === 'agent_heard'))
+    .sort((a, b) => a.id - b.id)
+    .slice(-limit);
+}
+
 export async function getRecentEvents(limit = 50): Promise<Event[]> {
   return [...store.events].sort((a, b) => b.id - a.id).slice(0, limit);
 }
