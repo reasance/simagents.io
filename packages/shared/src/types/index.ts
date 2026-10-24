@@ -46,7 +46,10 @@ export type LLMType =
   | 'mistral'
   | 'minimax'
   | 'kimi'
-  | 'openrouter';
+  | 'openrouter'
+  // Decision models: they choose among offered options and produce no text
+  | 'typesafe'
+  | 'levanto';
 
 // ============================================
 // Location Types

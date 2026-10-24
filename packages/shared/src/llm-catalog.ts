@@ -71,6 +71,8 @@ const GLM_SOURCE = 'https://docs.z.ai/guides/capabilities/thinking-mode';
 const MISTRAL_SOURCE = 'https://docs.mistral.ai/capabilities/reasoning/';
 const MINIMAX_SOURCE = 'https://platform.minimax.io/docs/api-reference/text-chat-openai.md';
 const KIMI_SOURCE = 'https://platform.kimi.ai/docs/api/chat.md';
+const JEV_SOURCE = 'https://docs.typesafe.ai/models.md';
+const SAGE_SOURCE = 'https://docs.levanto.ai/decision-model/quickstart.md';
 
 const zAiEndpoint = ['https://api.z.ai', 'api/paas/v4/chat/completions'].join('/');
 
@@ -237,6 +239,33 @@ export const LLM_CATALOG: ProviderCatalogEntry[] = [
       { id: 'kimi-k3', label: 'Kimi K3', reasoning: effort(['low', 'high', 'max'], 'max'), source: KIMI_SOURCE, verifiedAt: VERIFIED },
       { id: 'kimi-k2.6', label: 'Kimi K2.6', reasoning: { kind: 'toggle' }, source: KIMI_SOURCE, verifiedAt: VERIFIED, legacy: true },
       { id: 'kimi-k2.7-code', label: 'Kimi K2.7 Code', reasoning: { kind: 'none' }, source: KIMI_SOURCE, verifiedAt: VERIFIED, legacy: true },
+    ],
+  },
+  // Decision models pick one of the actions offered to them and cannot speak.
+  // Browser CORS support is undocumented, so they default to a user relay.
+  {
+    id: 'typesafe',
+    displayName: 'Jev (TypeSafe AI)',
+    endpoint: 'https://api.typesafe.ai/v1/systemone',
+    authStyle: 'bearer',
+    cors: 'proxy',
+    docsUrl: 'https://console.typesafe.ai/',
+    defaultModelId: 'jev-1.14.0',
+    models: [
+      { id: 'jev-1.14.0', label: 'Jev 1.14', reasoning: { kind: 'none' }, source: JEV_SOURCE, verifiedAt: VERIFIED },
+      { id: 'jev-1.13.0', label: 'Jev 1.13', reasoning: { kind: 'none' }, source: JEV_SOURCE, verifiedAt: VERIFIED, legacy: true },
+    ],
+  },
+  {
+    id: 'levanto',
+    displayName: 'Sage (Levanto Labs)',
+    endpoint: 'https://sage.levanto.ai/decide',
+    authStyle: 'bearer',
+    cors: 'proxy',
+    docsUrl: 'https://platform.levanto.ai/login',
+    defaultModelId: 'levanto-sage-v1.3',
+    models: [
+      { id: 'levanto-sage-v1.3', label: 'Sage 1.3', reasoning: { kind: 'none' }, source: SAGE_SOURCE, verifiedAt: VERIFIED },
     ],
   },
 ];

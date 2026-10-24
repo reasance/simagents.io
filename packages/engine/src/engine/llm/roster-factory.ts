@@ -2,6 +2,7 @@ import type { RequestTrace } from './request-trace';
 import {
   getDefaultModelId,
   isBaselineProviderId,
+  isDecisionProtocol,
   isLLMProviderId,
   type AgentRosterEntry,
   type LLMType,
@@ -17,6 +18,7 @@ import {
 // Keep the provider in the Worker entry bundle. A lazy chunk can import the
 // entry back and reinstall onmessage with an empty session in WebKit.
 import { LLMDecisionProvider } from './llm-provider';
+import { DecisionModelProvider } from './decision-model-provider';
 import { ProviderUnavailableError } from './request-builder';
 import type { RequestBudget } from './request-budget';
 import type { KeySource } from './keys';
@@ -89,6 +91,17 @@ export function createRosterProviderFactory(
     const apiKey = keySource.getKey(connection?.credentialRef ?? provider);
     if (!apiKey) {
       return new UnavailableDecisionProvider(provider, 'no-key');
+    }
+
+    if (connection && isDecisionProtocol(connection.protocol)) {
+      return new DecisionModelProvider({
+        provider,
+        connection,
+        connectionId: connection.id,
+        modelId: entry.modelId || getDefaultModelId(provider),
+        apiKey,
+        budget: options.budget,
+      });
     }
 
     return new LLMDecisionProvider({

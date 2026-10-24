@@ -56,3 +56,15 @@ test('a model that returns exactly the requested probe action passes verificatio
   }) as unknown as typeof fetch;
   await verifyConnection(profile, 'fixture-model', 'fixture-key', undefined, undefined, 128);
 });
+test('decision-model connections are verified with one closed question', async () => {
+  let calls = 0;
+  globalThis.fetch = (async (url: string, init?: RequestInit) => {
+    calls++;
+    expect(url).toBe('https://api.typesafe.ai/v1/systemone');
+    const body = JSON.parse(init!.body as string);
+    expect(Object.keys(body.questions.next_action.criteria)).toEqual(['works', 'fails']);
+    return Response.json({ model: 'jev-1.14.0', answers: { next_action: { choice: 'works' } } });
+  }) as unknown as typeof fetch;
+  await verifyConnection({ ...defaultConnection('typesafe'), transport: 'direct' }, 'jev-1.14.0', 'fixture-key', undefined, undefined, 128);
+  expect(calls).toBe(1);
+});

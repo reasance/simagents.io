@@ -34,6 +34,9 @@ export function extractProviderResponse(
     case 'kimi':
     case 'openrouter':
       return extractOpenAICompatible(json);
+    case 'typesafe':
+    case 'levanto':
+      throw new Error('Decision models do not return text');
     default:
       return unreachable(provider);
   }

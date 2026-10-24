@@ -1,12 +1,13 @@
 import { assertOfficialRelay } from './official-relay';
 import { registerCredentialRequest } from './credential-requests';
-import { AppError, relayErrorIssue, validateConnectionProfile, type ConnectionProfile } from '@simagents/shared';
+import { AppError, isDecisionProtocol, relayErrorIssue, validateConnectionProfile, type ConnectionProfile } from '@simagents/shared';
 import { boundedProviderJson, classifyProviderStatus, ProviderRequestError } from '@simagents/engine/engine/llm/provider-error';
 /** Explicit first-page listing. Lack of a listing never blocks a manually entered model ID. */
 export async function listConnectionModels(input: ConnectionProfile, key: string, relayAccessToken?: string): Promise<string[]> {
   const profile = validateConnectionProfile(input);
   assertOfficialRelay(profile);
   if (!key.trim()) throw new Error('Enter or unlock the connection credential');
+  if (isDecisionProtocol(profile.protocol)) throw new Error('Model listing is unavailable for decision models; enter a model ID manually');
   const suffix = profile.protocol === 'openai-responses' ? '/responses' : profile.protocol === 'chat-completions' ? '/chat/completions' : '/messages';
   let url = profile.endpoint;
   if (profile.protocol !== 'gemini-generate-content') {

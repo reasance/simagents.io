@@ -3,11 +3,19 @@ import { approvedRelayDestination } from './relay-policy';
 import { BASELINE_PROVIDER_IDS, LLM_CATALOG, getModelCatalogEntry, getProviderCatalogEntry } from './llm-catalog';
 import type { LLMType } from './types';
 
-export const PROTOCOLS = ['openai-responses', 'chat-completions', 'anthropic-messages', 'gemini-generate-content'] as const;
-export type TextProtocol = typeof PROTOCOLS[number];
+export const TEXT_PROTOCOLS = ['openai-responses', 'chat-completions', 'anthropic-messages', 'gemini-generate-content'] as const;
+export type TextProtocol = typeof TEXT_PROTOCOLS[number];
+/** Decision models answer a closed question with one of the offered options and generate no text. */
+export const DECISION_PROTOCOLS = ['typesafe-systemone', 'levanto-decide'] as const;
+export type DecisionProtocol = typeof DECISION_PROTOCOLS[number];
+export const PROTOCOLS = [...TEXT_PROTOCOLS, ...DECISION_PROTOCOLS] as const;
+export type ConnectionProtocol = typeof PROTOCOLS[number];
+export function isDecisionProtocol(protocol: string): protocol is DecisionProtocol {
+  return (DECISION_PROTOCOLS as readonly string[]).includes(protocol);
+}
 export interface ProviderDefinition {
-  id: LLMType; label: string; protocol: TextProtocol; endpoint: string; auth: 'bearer' | 'x-api-key' | 'google-key';
-  cors: 'direct' | 'proxy'; variants: Array<{ label: string; endpoint: string; protocol?: TextProtocol }>;
+  id: LLMType; label: string; protocol: ConnectionProtocol; endpoint: string; auth: 'bearer' | 'x-api-key' | 'google-key';
+  cors: 'direct' | 'proxy'; variants: Array<{ label: string; endpoint: string; protocol?: ConnectionProtocol }>;
 }
 const id = z.string().min(1).max(200).regex(/^[a-zA-Z0-9:_-]+$/).refine((value) => !['__proto__', 'constructor', 'prototype'].includes(value));
 export const ModelCapabilitiesSchema = z.object({
@@ -36,13 +44,15 @@ export function validateConnectionProfile(value: unknown): ConnectionProfile {
   if (profile.transport === 'official-relay') {
     if (new URL(profile.relayUrl!).pathname !== '/') throw new Error('Official relay URL must be an HTTPS origin without a path');
     if (!profile.relayCredentialRef || profile.relayCredentialRef === profile.credentialRef) throw new Error('A separate official relay access credential reference is required');
+    if (isDecisionProtocol(profile.protocol)) throw new Error('Decision models are not available through the official relay; use direct access or your own relay');
     if (!approvedRelayDestination(profile.providerId, profile.protocol, profile.endpoint)) throw new Error('This endpoint is not approved for the official relay; use direct access or your own relay');
   }
   return profile;
 }
 export const PROVIDER_DEFINITIONS: ProviderDefinition[] = LLM_CATALOG.map((p) => ({
   id: p.id, label: p.displayName, endpoint: p.id === 'codex' ? 'https://api.openai.com/v1/responses' : p.endpoint,
-  protocol: p.id === 'codex' ? 'openai-responses' : p.id === 'claude' ? 'anthropic-messages' : p.id === 'gemini' ? 'gemini-generate-content' : 'chat-completions',
+  protocol: p.id === 'codex' ? 'openai-responses' : p.id === 'claude' ? 'anthropic-messages' : p.id === 'gemini' ? 'gemini-generate-content'
+    : p.id === 'typesafe' ? 'typesafe-systemone' : p.id === 'levanto' ? 'levanto-decide' : 'chat-completions',
   auth: p.authStyle, cors: p.cors,
   variants: p.id === 'codex' ? [{ label: 'Chat Completions', endpoint: p.endpoint, protocol: 'chat-completions' }]
     : p.id === 'glm' ? [{ label: 'Coding Plan (requires a matching subscription)', endpoint: 'https://api.z.ai/api/coding/paas/v4/chat/completions' }]
@@ -53,7 +63,7 @@ export function defaultConnection(providerId: LLMType, relayUrl = ''): Connectio
   return { id: `provider:${providerId}`, name: definition.label, providerId, protocol: definition.protocol,
     endpoint: definition.endpoint, credentialRef: providerId, transport: definition.cors === 'direct' ? 'direct' : 'user-relay', relayUrl };
 }
-export function defaultCapabilities(provider: string, modelId: string, protocol: TextProtocol): ModelCapabilities {
+export function defaultCapabilities(provider: string, modelId: string, protocol: ConnectionProtocol): ModelCapabilities {
   const known = getModelCatalogEntry(provider as LLMType, modelId);
   const kind = known?.reasoning.kind;
   return {

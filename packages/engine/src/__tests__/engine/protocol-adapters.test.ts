@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { defaultCapabilities, defaultConnection, validateConnectionProfile, type TextProtocol } from '@simagents/shared';
+import { defaultCapabilities, defaultConnection, validateConnectionProfile, type ConnectionProfile, type TextProtocol } from '@simagents/shared';
 import { buildProtocolRequest, normalizeDecisionText } from '../../engine/llm/protocol-adapters';
 import { extractProviderResponse } from '../../engine/llm/response-extractor';
 import { createRosterProviderFactory } from '../../engine/llm/roster-factory';
@@ -7,7 +7,7 @@ import { createAgent } from '../../engine-memory/queries/agents';
 import { resetStore } from '../../engine-memory/store';
 const protocols: TextProtocol[] = ['openai-responses', 'chat-completions', 'anthropic-messages', 'gemini-generate-content'];
 function input(protocol: TextProtocol) {
-  const connection = { ...defaultConnection('codex'), protocol, transport: 'direct' as const, endpoint: 'https://fixture.example/v1/models' };
+  const connection: ConnectionProfile = { ...defaultConnection('codex'), protocol, transport: 'direct' as const, endpoint: 'https://fixture.example/v1/models' };
   return { connection, capabilities: defaultCapabilities('codex', 'custom-model', protocol), modelId: 'custom-model', apiKey: 'fixture', maxTokens: 256, prompt: { system: 'Return JSON', user: 'Choose an action' } };
 }
 test.each(protocols)('%s honors explicit model, tokens and structured output without external tools', (protocol) => {

@@ -1,4 +1,4 @@
-import { ModelCapabilitiesSchema, validateConnectionProfile, type ConnectionProfile, type ModelCapabilities, type ReasoningLevel, type TextProtocol } from '@simagents/shared';
+import { isDecisionProtocol, ModelCapabilitiesSchema, validateConnectionProfile, type ConnectionProfile, type ModelCapabilities, type ReasoningLevel, type TextProtocol } from '@simagents/shared';
 import type { ProviderPrompt, ProviderRequest } from './request-builder';
 
 export const DECISION_SCHEMA = {
@@ -13,6 +13,7 @@ export interface AdapterInput {
 }
 export function buildProtocolRequest(input: AdapterInput): ProviderRequest {
   const connection = validateConnectionProfile(input.connection);
+  if (isDecisionProtocol(connection.protocol)) throw new Error('Decision models do not use text protocols');
   const capabilities = ModelCapabilitiesSchema.parse(input.capabilities);
   if (!input.apiKey.trim()) throw new Error('A credential is required');
   if (!input.modelId.trim() || input.modelId.length > 500) throw new Error('A model ID is required');
