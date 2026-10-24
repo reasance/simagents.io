@@ -1,6 +1,6 @@
 # Sim Agents
 
-[![CI](https://github.com/agentauri/simagents.io/actions/workflows/ci.yml/badge.svg)](https://github.com/agentauri/simagents.io/actions/workflows/ci.yml)
+[![CI](https://github.com/reasance/simagents.io/actions/workflows/ci.yml/badge.svg)](https://github.com/reasance/simagents.io/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > Browser-only multi-agent simulation for observing AI social behavior.

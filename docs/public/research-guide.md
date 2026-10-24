@@ -66,4 +66,4 @@ bundle/
   claim-review.md
 ```
 
-Use [Research Bundles](https://github.com/agentauri/simagents.io/blob/main/docs/research-bundles.md) and the templates in `docs/templates/` when preparing a stronger claim.
+Use [Research Bundles](https://github.com/reasance/simagents.io/blob/main/docs/research-bundles.md) and the templates in `docs/templates/` when preparing a stronger claim.

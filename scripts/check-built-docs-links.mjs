@@ -11,9 +11,9 @@ async function target(pathname) { const p=resolve(base,'.'+pathname);if(!p.start
 for(const [page,html] of data){
  for(const match of html.matchAll(/<(a|img|script|link)\b([^>]*?)\b(href|src)=["']([^"']+)["']/g)){
   const [,tag,,attribute,raw]=match,href=raw.replace(/&amp;/g,'&');if(!href||href.startsWith('data:')||href.startsWith('mailto:'))continue;
-  if(tag==='a'&&href.startsWith('https://github.com/agentauri/simagents.io/edit/')){
-   editLinks++;if(href.includes('/../')||!href.startsWith('https://github.com/agentauri/simagents.io/edit/main/docs/public/'))problems.push(`${page}: malformed edit link ${href}`);
-   const docPath=decodeURIComponent(href.slice('https://github.com/agentauri/simagents.io/edit/main/docs/public/'.length));
+  if(tag==='a'&&href.startsWith('https://github.com/reasance/simagents.io/edit/')){
+   editLinks++;if(href.includes('/../')||!href.startsWith('https://github.com/reasance/simagents.io/edit/main/docs/public/'))problems.push(`${page}: malformed edit link ${href}`);
+   const docPath=decodeURIComponent(href.slice('https://github.com/reasance/simagents.io/edit/main/docs/public/'.length));
    const sourceRoot=fileURLToPath(new URL('../docs/public',import.meta.url)),source=resolve(sourceRoot,docPath);
    if(!source.startsWith(sourceRoot+sep))problems.push(`${page}: escaping edit source`);
    try{if(!(await stat(source)).isFile())throw new Error();}catch{problems.push(`${page}: missing edit source ${docPath}`);}continue;

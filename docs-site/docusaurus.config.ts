@@ -14,7 +14,7 @@ const config: Config = {
   url: process.env.DOCS_URL ?? 'https://doc.simagents.io',
   baseUrl: process.env.DOCS_BASE_URL ?? '/',
 
-  organizationName: 'agentauri',
+  organizationName: 'reasance',
   projectName: 'simagents.io',
 
   onBrokenLinks: 'throw',
@@ -37,7 +37,7 @@ const config: Config = {
           path: '../docs/public', // Source from docs/public instead of docs-site/docs
           sidebarPath: './sidebars.ts',
           routeBasePath: '/', // Docs at root
-          editUrl: ({docPath}) => `https://github.com/agentauri/simagents.io/edit/main/docs/public/${docPath}`,
+          editUrl: ({docPath}) => `https://github.com/reasance/simagents.io/edit/main/docs/public/${docPath}`,
         },
         blog: false, // Disable blog
         theme: {
@@ -66,7 +66,7 @@ const config: Config = {
           label: 'Documentation',
         },
         {
-          href: 'https://github.com/agentauri/simagents.io',
+          href: 'https://github.com/reasance/simagents.io',
           label: 'GitHub',
           position: 'right',
         },
@@ -84,7 +84,7 @@ const config: Config = {
             },
             {
               label: 'BYOK Security',
-              href: 'https://github.com/agentauri/simagents.io/blob/main/docs/security-byok.md',
+              href: 'https://github.com/reasance/simagents.io/blob/main/docs/security-byok.md',
             },
             {
               label: 'Research Guide',
@@ -97,15 +97,15 @@ const config: Config = {
           items: [
             {
               label: 'GitHub',
-              href: 'https://github.com/agentauri/simagents.io',
+              href: 'https://github.com/reasance/simagents.io',
             },
             {
               label: 'Full PRD',
-              href: 'https://github.com/agentauri/simagents.io/blob/main/docs/PRD.md',
+              href: 'https://github.com/reasance/simagents.io/blob/main/docs/PRD.md',
             },
             {
               label: 'Scientific Framework',
-              href: 'https://github.com/agentauri/simagents.io/blob/main/docs/appendix/scientific-framework.md',
+              href: 'https://github.com/reasance/simagents.io/blob/main/docs/appendix/scientific-framework.md',
             },
           ],
         },
@@ -114,11 +114,11 @@ const config: Config = {
           items: [
             {
               label: 'Stack Rationale',
-              href: 'https://github.com/agentauri/simagents.io/blob/main/docs/appendix/stack-rationale.md',
+              href: 'https://github.com/reasance/simagents.io/blob/main/docs/appendix/stack-rationale.md',
             },
             {
               label: 'Roadmap',
-              href: 'https://github.com/agentauri/simagents.io/blob/main/ROADMAP.md',
+              href: 'https://github.com/reasance/simagents.io/blob/main/ROADMAP.md',
             },
           ],
         },
