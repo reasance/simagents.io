@@ -33,7 +33,7 @@ const relay = createRelay((async (url, init) => {
   assert(url === 'https://api.openai.com/v1/responses', 'Unexpected provider destination');
   assert(new Headers(init?.headers).get('authorization') === 'Bearer synthetic-provider-key', 'Relay forwarded authorization as provider key');
   inference++;
-  return Response.json({ model: 'fixture-model', output: [{ type: 'message', content: [{ type: 'output_text', text: '{"action":"signal","params":{"message":"fixture","intensity":1}}' }] }] });
+  return Response.json({ model: 'fixture-model', output: [{ type: 'message', content: [{ type: 'output_text', text: '{"action":"speak","params":{"message":"fixture"}}' }] }] });
 }) as typeof fetch, 60000, () => now);
 const browserName = process.env.SIMAGENTS_SMOKE_BROWSER ?? 'chromium';
 const browser = await playwright[browserName].launch({ headless: true });

@@ -3,7 +3,7 @@ import { getRuntimeConfig } from '../config';
 import { createIntent } from '../actions';
 import type { ActionIntent } from '../actions/types';
 import { buildObservation, formatEvent } from '../agents/observer';
-import { getAgentById, getAliveAgents } from '../engine-memory/queries/agents';
+import { getAgentById, getAliveAgents, updateAgent } from '../engine-memory/queries/agents';
 import { getEventsByAgent } from '../engine-memory/queries/events';
 import { getAllResourceSpawns, getAllShelters } from '../engine-memory/queries/world';
 import { agentRng, type RandomSource } from '../utils/random';
@@ -125,6 +125,11 @@ export class AgentRunner {
 
         await this.options.host.waitWhilePaused(signal);
         if (signal.aborted) break;
+
+        if (decision.notes !== undefined) {
+          const notes = decision.notes;
+          await this.options.executor.mutate(async () => { await updateAgent(freshAgent.id, { privateNotes: notes }); });
+        }
 
         const intent = this.intentFor(freshAgent.id, decision);
         await this.options.executor.submit(intent, {

@@ -132,7 +132,7 @@ export async function handleBuy(
   await storeMemory({
     agentId: agent.id,
     type: 'action',
-    content: `Bought ${quantity}x ${itemType} for ${totalCost} CITY at shelter${trustNote}. Cost ${shelterEnergyCost} energy. Balance now ${agent.balance - totalCost} CITY.`,
+    content: `Bought ${quantity}x ${itemType} for ${totalCost} CITY at shelter. Cost ${shelterEnergyCost} energy. Balance now ${agent.balance - totalCost} CITY.`,
     importance: 4,
     emotionalValence: trustMultiplier < 1 ? 0.3 : 0.1, // More positive if got discount
     x: agent.x,

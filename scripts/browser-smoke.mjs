@@ -71,8 +71,8 @@ function installLocalState({ roster, keys, proxyUrl, config }) {
 
 function actionText(provider) {
   return JSON.stringify({
-    action: 'signal',
-    params: { message: `${provider} smoke`, intensity: 1 },
+    action: 'speak',
+    params: { message: `${provider} smoke` },
     reasoning: `${provider} mocked browser request`,
   });
 }

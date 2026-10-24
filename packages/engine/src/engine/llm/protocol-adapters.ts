@@ -2,8 +2,9 @@ import { ModelCapabilitiesSchema, validateConnectionProfile, type ConnectionProf
 import type { ProviderPrompt, ProviderRequest } from './request-builder';
 
 export const DECISION_SCHEMA = {
-  type: 'object', properties: { action: { type: 'string' }, paramsJson: { type: 'string', description: 'A JSON object encoded as a string, containing action parameters.' }, reasoning: { type: 'string' } },
-  required: ['action', 'paramsJson', 'reasoning'], additionalProperties: false,
+  type: 'object', properties: { action: { type: 'string' }, paramsJson: { type: 'string', description: 'A JSON object encoded as a string, containing action parameters.' }, reasoning: { type: 'string' },
+    notes: { type: 'string', description: 'Replaces your private notes; an empty string keeps them.' } },
+  required: ['action', 'paramsJson', 'reasoning', 'notes'], additionalProperties: false,
 };
 export interface AdapterInput {
   relayAccessToken?: string;
@@ -21,7 +22,7 @@ export function buildProtocolRequest(input: AdapterInput): ProviderRequest {
   const opts = { ...input, connection, capabilities };
   const adapter = ADAPTERS[connection.protocol];
   const system = input.prompt.system + (capabilities.output === 'json-schema'
-    ? '\nWire format: return action, paramsJson (the action params object encoded as a JSON string), and reasoning. Do not return a params field.' : '');
+    ? '\nWire format: return action, paramsJson (the action params object encoded as a JSON string), reasoning, and notes (empty string to keep your notes). Do not return a params field.' : '');
   const body = adapter({ ...opts, prompt: { ...input.prompt, system } });
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (connection.protocol === 'anthropic-messages') Object.assign(headers, { 'x-api-key': input.apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' });
@@ -115,5 +116,5 @@ export function normalizeDecisionText(text: string, structured: boolean): string
   if (!structured) return text;
   const value = JSON.parse(text);
   if (!value || typeof value.action !== 'string' || typeof value.paramsJson !== 'string' || typeof value.reasoning !== 'string') throw new Error('Invalid structured decision');
-  return JSON.stringify({ action: value.action, params: JSON.parse(value.paramsJson), reasoning: value.reasoning });
+  return JSON.stringify({ action: value.action, params: JSON.parse(value.paramsJson), reasoning: value.reasoning, ...(typeof value.notes === 'string' && value.notes ? { notes: value.notes } : {}) });
 }

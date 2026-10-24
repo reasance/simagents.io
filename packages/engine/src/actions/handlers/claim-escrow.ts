@@ -112,7 +112,7 @@ export async function handleClaimEscrow(
     await storeMemory({
       agentId: employer.id,
       type: 'interaction',
-      content: `${agent.id.slice(0, 8)} claimed ${escrowAmount.toFixed(1)} CITY escrow after I failed to pay. My reputation is damaged.`,
+      content: `${agent.id.slice(0, 8)} claimed ${escrowAmount.toFixed(1)} CITY escrow after I failed to pay.`,
       importance: 8,
       emotionalValence: -0.6,
       involvedAgentIds: [agent.id],

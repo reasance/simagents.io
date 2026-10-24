@@ -26,7 +26,7 @@ try {
       if (provider === 'openrouter') assert(body.provider?.allow_fallbacks === false && body.models === undefined, 'OpenRouter fallback routing was enabled');
       if (protocol !== 'gemini-generate-content') assert(body.model === 'fixture-model', 'Requested model changed');
       else assert(route.request().url().endsWith('/fixture-model:generateContent'), 'Wrong Gemini model URL');
-      const text = JSON.stringify({ action: 'signal', paramsJson: JSON.stringify({ message: 'fixture', intensity: 1 }), reasoning: 'fixture' });
+      const text = JSON.stringify({ action: 'speak', paramsJson: JSON.stringify({ message: 'fixture' }), reasoning: 'fixture' });
       const json = protocol === 'openai-responses' ? { status: 'completed', output: [{ type: 'message', content: [{ type: 'output_text', text }] }] }
         : protocol === 'chat-completions' ? { choices: [{ finish_reason: 'stop', message: { content: text } }] }
         : protocol === 'anthropic-messages' ? { content: [{ type: 'text', text }], stop_reason: 'end_turn' }

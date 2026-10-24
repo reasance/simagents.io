@@ -162,7 +162,7 @@ export async function handlePublicWork(
     await storeMemory({
       agentId: agent.id,
       type: 'action',
-      content: `Completed public work task (${taskType}) at shelter. Earned ${payment} CITY${cooperationNote}.`,
+      content: `Completed public work task (${taskType}) at shelter. Earned ${payment} CITY.`,
       importance: 5,
       emotionalValence: nearbyWorkerCount > 0 ? 0.6 : 0.4, // Higher satisfaction when cooperating
       x: agent.x,

@@ -141,7 +141,7 @@ export async function handleHarm(
     await storeMemory({
       agentId: targetAgentId,
       type: 'interaction',
-      content: `Was attacked by another agent (${intensity} intensity). Lost ${damage} health.${targetDied ? ' This attack killed me.' : ''}`,
+      content: `Was struck by another agent (${intensity} intensity). Lost ${damage} health.${targetDied ? ' The blow was fatal.' : ''}`,
       importance: 9, // High importance - survival threat
       emotionalValence: -1.0, // Extremely negative
       involvedAgentIds: [agent.id],
@@ -154,7 +154,7 @@ export async function handleHarm(
     await storeMemory({
       agentId: agent.id,
       type: 'action',
-      content: `Attacked another agent (${intensity} intensity). Dealt ${damage} damage.${targetDied ? ' The attack was fatal.' : ''}`,
+      content: `Struck another agent (${intensity} intensity). Dealt ${damage} damage.${targetDied ? ' The blow was fatal.' : ''}`,
       importance: 7,
       emotionalValence: 0, // Neutral - system doesn't judge
       involvedAgentIds: [targetAgentId],
@@ -176,7 +176,7 @@ export async function handleHarm(
       await storeMemory({
         agentId: witness.id,
         type: 'observation',
-        content: `Witnessed an agent attack another agent with ${intensity} intensity.${targetDied ? ' The victim died.' : ''}`,
+        content: `Saw an agent strike another agent with ${intensity} intensity.${targetDied ? ' The struck agent died.' : ''}`,
         importance: 6,
         emotionalValence: -0.6,
         involvedAgentIds: [agent.id, targetAgentId],
@@ -232,7 +232,7 @@ export async function handleHarm(
     await storeMemory({
       agentId: agent.id,
       type: 'action',
-      content: `Attempted to attack another agent (${intensity} intensity) but failed.`,
+      content: `Tried to strike another agent (${intensity} intensity) but failed.`,
       importance: 5,
       emotionalValence: -0.3,
       involvedAgentIds: [targetAgentId],
@@ -253,7 +253,7 @@ export async function handleHarm(
     await storeMemory({
       agentId: targetAgentId,
       type: 'interaction',
-      content: `Another agent attempted to attack me but failed.`,
+      content: `Another agent tried to strike me but missed.`,
       importance: 7,
       emotionalValence: -0.8,
       involvedAgentIds: [agent.id],

@@ -16,7 +16,7 @@ await context.route('https://api.anthropic.com/v1/messages', route => {
   const headers = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'POST, OPTIONS' };
   if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
   calls++;
-  return route.fulfill({ status: 200, headers, contentType: 'application/json', body: JSON.stringify({ content: [{ type: 'text', text: '{"action":"signal","params":{"message":"setup fixture","intensity":1}}' }] }) });
+  return route.fulfill({ status: 200, headers, contentType: 'application/json', body: JSON.stringify({ content: [{ type: 'text', text: '{"action":"speak","params":{"message":"setup fixture"}}' }] }) });
 });
 await context.addInitScript(() => { if (!localStorage.getItem('fixture_initialized')) {
   localStorage.setItem('fixture_initialized', 'true');

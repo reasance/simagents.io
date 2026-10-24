@@ -17,7 +17,7 @@ try {
     await context.route('https://api.anthropic.com/v1/messages', async route => {
       if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'POST, OPTIONS' } });
       calls++;
-      await route.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ model: 'synthetic-reported-model', content: [{ type: 'text', text: '{"action":"signal","params":{"message":"keyboard fixture","intensity":1}}' }] }) });
+      await route.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ model: 'synthetic-reported-model', content: [{ type: 'text', text: '{"action":"speak","params":{"message":"keyboard fixture"}}' }] }) });
     });
     const page = await context.newPage();
     const errors = [];

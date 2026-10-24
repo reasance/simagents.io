@@ -32,6 +32,7 @@ import { handleSpreadGossip } from './handlers/spread-gossip';
 import { handleSpawnOffspring } from './handlers/spawn-offspring';
 import { handleSignal } from './handlers/signal';
 import { handleSpeak } from './handlers/speak';
+import { handleGive } from './handlers/give';
 // Employment System
 import { handleOfferJob } from './handlers/offer-job';
 import { handleAcceptJob } from './handlers/accept-job';
@@ -79,6 +80,7 @@ handlers.set('spread_gossip', handleSpreadGossip as ActionHandler);
 handlers.set('spawn_offspring', handleSpawnOffspring as ActionHandler);
 handlers.set('signal', handleSignal as ActionHandler);
 handlers.set('speak', handleSpeak as ActionHandler);
+handlers.set('give', handleGive as ActionHandler);
 // Employment System
 handlers.set('offer_job', handleOfferJob as ActionHandler);
 handlers.set('accept_job', handleAcceptJob as ActionHandler);

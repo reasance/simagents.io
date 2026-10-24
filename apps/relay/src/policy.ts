@@ -12,8 +12,9 @@ const actionSchema = z.object({
   type: z.literal('object'),
   properties: z.object({ action: z.object({ type: z.literal('string') }).strict(),
     paramsJson: z.object({ type: z.literal('string'), description: z.string().max(200).optional() }).strict(),
-    reasoning: z.object({ type: z.literal('string') }).strict() }).strict(),
-  required: z.tuple([z.literal('action'), z.literal('paramsJson'), z.literal('reasoning')]), additionalProperties: z.literal(false),
+    reasoning: z.object({ type: z.literal('string') }).strict(),
+    notes: z.object({ type: z.literal('string'), description: z.string().max(200).optional() }).strict() }).strict(),
+  required: z.tuple([z.literal('action'), z.literal('paramsJson'), z.literal('reasoning'), z.literal('notes')]), additionalProperties: z.literal(false),
 }).strict();
 const simpleFormat = z.object({ type: z.literal('json_object') }).strict();
 const responsesFormat = z.union([simpleFormat, z.object({ type: z.literal('json_schema'), name: z.literal('simulation_action'), strict: z.literal(true), schema: actionSchema }).strict()]);

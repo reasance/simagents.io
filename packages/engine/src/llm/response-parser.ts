@@ -6,6 +6,8 @@ import { validateActionParams } from '../actions/validation';
 import type { AgentDecision } from './types';
 import type { ActionType } from '../actions/types';
 import { randomChoice } from '../utils/random';
+import { getRuntimeConfig, isEmergentPromptEnabled } from '../config';
+import { resolveSurfaceAction } from './prompts/action-surface';
 
 const VALID_ACTIONS: ActionType[] = [
   // Core survival actions
@@ -13,7 +15,7 @@ const VALID_ACTIONS: ActionType[] = [
   // Survival fallbacks (always available)
   'forage', 'public_work',
   // Communication
-  'signal', 'speak',
+  'signal', 'speak', 'give',
   // Phase 1: Emergence Observation
   'claim', 'name_location',
   // Phase 2: Conflict Actions
@@ -53,8 +55,12 @@ export function parseResponse(response: string): AgentDecision | null {
 
     const parsed = JSON.parse(jsonMatch[0]);
 
-    // Validate action
-    if (!parsed.action || !VALID_ACTIONS.includes(parsed.action)) {
+    // Validate action. Emergent prompts offer a curated surface with physical aliases.
+    const name = typeof parsed.action === 'string' ? parsed.action : '';
+    const action = isEmergentPromptEnabled()
+      ? resolveSurfaceAction(name)
+      : VALID_ACTIONS.includes(name as ActionType) ? name as ActionType : undefined;
+    if (!action) {
       return null;
     }
 
@@ -64,15 +70,17 @@ export function parseResponse(response: string): AgentDecision | null {
     }
 
     // Validate specific action params
-    const validationResult = validateActionParams(parsed.action, parsed.params);
+    const validationResult = validateActionParams(action, parsed.params);
     if (validationResult) {
       return null;
     }
 
+    const notes = typeof parsed.notes === 'string' ? parsed.notes.trim() : '';
     return {
-      action: parsed.action as ActionType,
+      action,
       params: parsed.params,
       reasoning: typeof parsed.reasoning === 'string' ? parsed.reasoning : undefined,
+      ...(notes ? { notes: notes.slice(0, getRuntimeConfig().agent.privateNotesMaxLength) } : {}),
     };
   } catch (error) {
     return null;

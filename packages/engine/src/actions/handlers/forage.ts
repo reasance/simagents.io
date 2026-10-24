@@ -146,7 +146,7 @@ export async function handleForage(
     await storeMemory({
       agentId: agent.id,
       type: 'action',
-      content: `Foraged at (${agent.x}, ${agent.y}) but found nothing useful${cooperationNote}.`,
+      content: `Foraged at (${agent.x}, ${agent.y}) but found nothing useful.`,
       importance: 2,
       emotionalValence: -0.1,
       x: agent.x,
@@ -187,7 +187,7 @@ export async function handleForage(
   await storeMemory({
     agentId: agent.id,
     type: 'action',
-    content: `Foraged at (${agent.x}, ${agent.y}) and found ${foodFound} food${cooperationNote}! A lucky find.`,
+    content: `Foraged at (${agent.x}, ${agent.y}) and found ${foodFound} food! A lucky find.`,
     importance: 4,
     emotionalValence: nearbyForagerCount > 0 ? 0.5 : 0.3, // Higher satisfaction when cooperating
     x: agent.x,

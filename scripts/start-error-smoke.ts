@@ -26,7 +26,7 @@ await context.route('https://api.anthropic.com/v1/messages', (route: any) => {
   const headers = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'POST, OPTIONS' };
   if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
   calls++;
-  return route.fulfill({ headers, contentType: 'application/json', body: JSON.stringify({ model: 'start-error-fixture', usage: { input_tokens: 1, output_tokens: 1 }, content: [{ type: 'text', text: '{"action":"signal","params":{"message":"fixture","intensity":1}}' }] }) });
+  return route.fulfill({ headers, contentType: 'application/json', body: JSON.stringify({ model: 'start-error-fixture', usage: { input_tokens: 1, output_tokens: 1 }, content: [{ type: 'text', text: '{"action":"speak","params":{"message":"fixture"}}' }] }) });
 });
 const page = await context.newPage(); page.setDefaultTimeout(20000);
 page.on('pageerror', (error: Error) => errors.push(error.message));

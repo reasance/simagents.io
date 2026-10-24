@@ -30,6 +30,7 @@ export type ActionType =
   | 'share_info'
   | 'signal' // Long-range communication
   | 'speak' // Free speech heard by everyone within earshot
+  | 'give' // Hand items or currency to an agent within reach
   // Phase 4: Verifiable Credentials (§34)
   | 'issue_credential'
   | 'revoke_credential'
@@ -194,6 +195,12 @@ export interface SpeakParams {
   to?: string; // Optional addressee; must be within earshot
 }
 
+export interface GiveParams {
+  targetAgentId: string;
+  itemType: string; // An inventory item type, or 'CITY' for currency
+  quantity: number;
+}
+
 // Employment System Parameters
 
 export interface OfferJobParams {
@@ -277,6 +284,7 @@ export type ActionParams =
   | ShareInfoParams
   | SignalParams
   | SpeakParams
+  | GiveParams
   // Phase 4
   | IssueCredentialParams
   | RevokeCredentialParams

@@ -16,6 +16,6 @@ export async function verifyConnection(profile: ConnectionProfile, modelId: stri
   try {
     const provider = new LLMDecisionProvider({ provider: profile.providerId as LLMType, modelId, apiKey: key, connection: profile,
       capabilities: capabilities ?? defaultCapabilities(profile.providerId, modelId, profile.protocol), reasoningLevel, maxTokens, budget, relayAccessToken });
-    await provider.decideWithPrompt({ system: 'Return a simulation action as JSON only. Do not use tools.', user: 'Return exactly this action and parameters: {"action":"signal","params":{"message":"connection verified","intensity":1},"reasoning":"connection test"}' }, controller.signal);
+    await provider.decideWithPrompt({ system: 'Return a simulation action as JSON only. Do not use tools.', user: 'Return exactly this action and parameters: {"action":"speak","params":{"message":"connection verified"},"reasoning":"connection test"}' }, controller.signal);
   } finally { unregister(); clearTimeout(timer); budget.dispose(); }
 }

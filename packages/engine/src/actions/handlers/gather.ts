@@ -187,7 +187,7 @@ export async function handleGather(
   await storeMemory({
     agentId: agent.id,
     type: 'action',
-    content: `Gathered ${finalGathered}x ${targetSpawn.resourceType} at (${agent.x}, ${agent.y})${coopNote}. Spawn has ${targetSpawn.currentAmount - actualGathered} remaining.`,
+    content: `Gathered ${finalGathered}x ${targetSpawn.resourceType} at (${agent.x}, ${agent.y}). Spawn has ${targetSpawn.currentAmount - actualGathered} remaining.`,
     importance: 5,
     emotionalValence: 0.4,
     x: agent.x,

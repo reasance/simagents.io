@@ -101,6 +101,8 @@ export const EVENT_REGISTRY: Record<string, EventTypeDefinition> = {
   agent_signaled: { category: 'emergent', description: 'Agent sent a long-range signal' },
   agent_spoke: { category: 'emergent', description: 'Agent said something within earshot of others' },
   agent_heard: { category: 'emergent', description: 'Agent heard what a nearby agent said' },
+  agent_gave: { category: 'emergent', description: 'Agent handed items or currency to another' },
+  agent_received: { category: 'emergent', description: 'Agent was handed items or currency' },
 
   // Claims and naming
   agent_claimed: { category: 'emergent', description: 'Agent made a territorial claim' },

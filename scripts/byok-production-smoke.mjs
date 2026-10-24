@@ -18,7 +18,7 @@ await context.route('https://api.anthropic.com/v1/messages', async (route) => {
   calls++;
   lastRequestBody = route.request().postData();
   tokenLimit = route.request().postDataJSON().max_tokens;
-  await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ content: [{ type: 'text', text: '{"action":"signal","params":{"message":"fixture","intensity":1}}' }] }) });
+  await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ content: [{ type: 'text', text: '{"action":"speak","params":{"message":"fixture"}}' }] }) });
 });
 await context.addInitScript(() => {
   const NativeWorker = window.Worker;

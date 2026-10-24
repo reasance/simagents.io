@@ -170,7 +170,7 @@ export async function handleTrade(
   await storeMemory({
     agentId: agent.id,
     type: 'interaction',
-    content: `Successfully traded ${offeringQuantity}x ${offeringItemType} for ${bonusQuantityReceived}x ${requestingItemType} with another agent${bonusNote}.`,
+    content: `Successfully traded ${offeringQuantity}x ${offeringItemType} for ${bonusQuantityReceived}x ${requestingItemType} with another agent.`,
     importance: 6,
     emotionalValence: 0.5,
     involvedAgentIds: [targetAgentId],

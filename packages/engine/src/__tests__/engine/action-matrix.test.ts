@@ -49,6 +49,7 @@ const fixtures = {
   share_info: { params: { targetAgentId: 'b', subjectAgentId: 'c', infoType: 'location', position: { x: 0, y: 0 } }, missing: 'targetAgentId' },
   signal: { params: { message: 'hello', intensity: 1 } },
   speak: { params: { message: 'Is there water near here?', to: 'b' }, missing: 'to', free: 'Speaking needs no inventory, energy or money.' },
+  give: { params: { targetAgentId: 'b', itemType: 'food', quantity: 2 }, missing: 'targetAgentId' },
   issue_credential: { params: { subjectAgentId: 'b', claimType: 'skill', description: 'A demonstrated skill' }, missing: 'subjectAgentId' },
   revoke_credential: { params: { credentialId: 'credential' }, missing: 'credentialId', prepare: async () => { await createCredential({ id: 'credential', tick: 0, issuerId: 'a', issuerSignature: 'fixture', subjectId: 'b', claimType: 'skill', claimDescription: 'fixture' }); }, free: 'Revocation needs the issuing identity, not inventory or money.' },
   spread_gossip: { params: { targetAgentId: 'b', subjectAgentId: 'c', topic: 'skill', claim: 'Useful skill', sentiment: 1 }, missing: 'targetAgentId' },
@@ -132,6 +133,10 @@ const outcomes = {
   } },
   share_info: { events: ['agent_shared_info'], delta: { energy: -1 }, effects() {
     expect([...store.agentKnowledge.values()]).toContainEqual(expect.objectContaining({ agentId: 'b', knownAgentId: 'c', discoveryType: 'referral', referredById: 'a' }));
+  } },
+  give: { events: ['agent_gave', 'agent_received'], delta: {}, effects() {
+    expect(store.inventory.get('a:food')!.quantity).toBe(8);
+    expect(store.inventory.get('b:food')!.quantity).toBe(2);
   } },
   speak: { events: ['agent_spoke', 'agent_heard', 'agent_heard'], delta: {}, effects() {
     const heard = store.events.filter(e => e.eventType === 'agent_heard');

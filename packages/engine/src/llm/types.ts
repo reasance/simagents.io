@@ -49,6 +49,8 @@ export interface AgentObservation {
     state: string;
     /** Agent personality trait (Phase 5: Personality Diversification) */
     personality?: PersonalityTrait | null;
+    /** Notes the agent wrote for itself in earlier decisions */
+    privateNotes?: string;
   };
 
   // What's around (scientific model)
@@ -341,6 +343,8 @@ export interface AgentDecision {
   action: ActionType;
   params: ActionParams;
   reasoning?: string; // Optional explanation for logging
+  /** Replacement for the agent's private notes; absent keeps them */
+  notes?: string;
 }
 
 export type ActionParams =

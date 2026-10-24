@@ -68,6 +68,11 @@ export const CONFIG = {
       scentDurationTicks: env('SCENT_DURATION_TICKS', 20),
     },
 
+    give: {
+      /** Handing something over requires being adjacent or on the same cell */
+      maxDistance: env('GIVE_MAX_DISTANCE', 1),
+    },
+
     speak: {
       /** Manhattan distance within which every agent hears what is said */
       hearingRadius: env('SPEAK_HEARING_RADIUS', 6),
@@ -480,6 +485,8 @@ export const CONFIG = {
   // Agent Spawning (Scarcity Mode)
   // ---------------------------------------------------------------------------
   agent: {
+    /** Maximum characters an agent may keep in its private notes */
+    privateNotesMaxLength: env('AGENT_PRIVATE_NOTES_MAX_LENGTH', 1000),
     /** Starting balance for new agents (reduced to force resource gathering) */
     startingBalance: env('AGENT_STARTING_BALANCE', 50),
     /** Starting hunger for new agents (comfortable start) */

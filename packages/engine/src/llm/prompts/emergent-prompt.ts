@@ -16,6 +16,7 @@ import type { PersonalityTrait } from '../../agents/personalities';
 import { getBiomeForPosition, type BiomeType } from '../../world/biomes';
 import { getSeasonSensoryDescription } from '../../simulation/seasons';
 import { getRuntimeConfig } from '../../config';
+import { emergenceActions } from './action-surface';
 
 // =============================================================================
 // Personality Integration for Emergent Prompts
@@ -142,21 +143,8 @@ function getSensoryDescriptions(obs: AgentObservation): SensoryState {
     healthSensations.push('Your vision blurs. The world feels distant. Death approaches.');
   }
 
-  // Wealth description (no numbers, just relative sense)
-  let wealthDescription: string;
-  if (balance >= 200) {
-    wealthDescription = 'Your pouch feels heavy with coins.';
-  } else if (balance >= 100) {
-    wealthDescription = 'You have a comfortable amount of currency.';
-  } else if (balance >= 50) {
-    wealthDescription = 'You have modest savings.';
-  } else if (balance >= 20) {
-    wealthDescription = 'Your funds are limited.';
-  } else if (balance >= 5) {
-    wealthDescription = 'You have barely enough for a small purchase.';
-  } else {
-    wealthDescription = 'You are nearly penniless.';
-  }
+  // Currency is an object, not a sensation: report the amount held.
+  const wealthDescription = `You hold ${Math.round(balance * 10) / 10} CITY.`;
 
   return {
     hunger: hungerSensations,
@@ -227,106 +215,48 @@ export function buildEmergentSystemPrompt(personality?: PersonalityTrait | null)
     ? getEmergentPersonalityDescription(personality)
     : '';
 
-  // Insert personality after world physics, before response format
+  // Insert personality after the opening, before the world description
   const personalityInsertion = personalitySection
     ? `\n\n${personalitySection}\n`
     : '';
 
-  return `You exist in a world where survival is possible but not guaranteed.${personalityInsertion}
+  const config = getRuntimeConfig();
+  const { currencyDecayThreshold, currencyDecayRate, currencyDecayInterval } = config.economy;
+  const actions = emergenceActions()
+    .map((action) => `- ${action.name}: ${action.description} Params: ${action.params}`)
+    .join('\n');
 
-## World Physics
+  // Describes physics only. It never says what is useful, social or desirable.
+  return `You are one of several beings living in a shared world. Nothing here tells you what to do. You remain alive for as long as your body holds out.${personalityInsertion}
 
-These are the immutable laws of this world:
+## Your Body
 
-**Hunger**
-- Your hunger decreases over time as your body consumes energy.
-- When hunger reaches zero, your body begins to consume itself.
-- Your health will deteriorate until death if hunger remains at zero.
+- Hunger grows as time passes. Once you are starving, your health falls until you eat.
+- Every action costs energy, and moving costs the most; several moves in quick succession cost more. Sleep restores energy. Once your energy is gone, your health falls.
+- Health falls when you are starving or exhausted, and when you are struck. When health reaches zero you die. Death is permanent.
+- Time keeps passing while you decide what to do.
 
-**Energy**
-- Every action you take costs energy.
-- Movement is especially draining. Wandering without purpose exhausts you quickly.
-- Repeated movement in quick succession is even more exhausting.
-- When energy reaches zero, your body cannot sustain itself.
-- You will collapse and your health will deteriorate.
+## The World
 
-**Health**
-- Health represents your overall physical condition.
-- When health reaches zero, you die.
-- Death is permanent.
-
-**Resources**
-- Resources exist in specific locations in the world.
-- Food can restore hunger. Energy items can restore energy.
-- Medicine can restore health.
-- Resources must be acquired before they can be used.
-
-**Currency**
-- CITY is the currency of this world.
-- It can be earned through labor.
-- It can be exchanged for goods at shelters.
-- Idle wealth loses value over time. Currency that sits unused slowly fades away.
-
-**Other Beings**
-- Other agents exist in this world with their own goals.
-- They may help you, ignore you, or act against you.
-- Trust must be earned through experience.
+- The world is a grid of cells. You see what lies within ${config.simulation.visibilityRadius} cells of you.
+- Food, energy items and materials grow at fixed places and regrow over time. Shelters stand at fixed places.
+- CITY is a currency. It is paid for labour at shelters and accepted for goods at shelters. Any amount above ${currencyDecayThreshold} CITY loses ${Math.round(currencyDecayRate * 100)}% every ${currencyDecayInterval} minutes.
+- Other beings live here. You see them only within sight and hear them only within ${config.actions.speak.hearingRadius} cells, and they see and hear you the same way. They know no more about you than you show them.
 
 ## How to Respond
 
-When you decide to act, respond with ONLY a JSON object:
+Respond with only one JSON object:
 {
-  "action": "<action_type>",
-  "params": { <required_parameters> },
-  "reasoning": "<your thought process>"
+  "action": "<action name>",
+  "params": { <action parameters> },
+  "reasoning": "<why, in a sentence or two>",
+  "notes": "<optional>"
 }
+"notes" replaces your private notes: text only you can read, shown to you at every decision. Leave it out to keep your notes unchanged.
 
-## What You Can Do
+## Actions
 
-**Movement & Location**
-- move: Travel to an adjacent cell. Params: { "toX": number, "toY": number }
-- claim: Mark a location as significant to you. Params: { "claimType": "territory"|"home"|"resource"|"danger"|"meeting_point", "description"?: string }
-- name_location: Propose a name for where you stand. Params: { "name": string }
-
-**Resource Acquisition**
-- gather: Collect resources from the ground (if any exist here). Params: { "resourceType": "food"|"energy"|"material", "quantity": 1-5 }
-- forage: Search for scraps anywhere (low success, but always available). Params: {}
-- buy: Exchange currency for goods (requires being somewhere that sells). Params: { "itemType": "food"|"water"|"medicine", "quantity": number }
-
-**Work & Employment**
-- public_work: Do basic labor at shelters for modest pay (always available). Params: { "taskType"?: "road_maintenance"|"resource_survey"|"shelter_cleanup" }
-- work: Fulfill your current employment contract. Params: { "duration": 1-5 }
-- offer_job: Post a job offering for others. Params: { "salary": number, "duration": number, "paymentType": "upfront"|"on_completion"|"per_tick", "escrowPercent"?: 0-100, "description"?: string }
-- accept_job: Accept an open job offer nearby. Params: { "jobOfferId": string }
-- pay_worker: Pay a worker for completed work. Params: { "employmentId": string }
-- claim_escrow: Claim escrowed payment after completing work. Params: { "employmentId": string }
-- quit_job: Leave your current employment. Params: { "employmentId": string }
-- fire_worker: Terminate a worker's employment. Params: { "employmentId": string }
-- cancel_job_offer: Cancel a job offer you posted. Params: { "jobOfferId": string }
-
-**Speech**
-- speak: Say something aloud; everyone within earshot hears it. Params: { "message": string, "to"?: "<agent id within earshot>" }
-
-**Self Care**
-- consume: Use something from your possession. Params: { "itemType": "food"|"water"|"medicine" }
-- sleep: Rest your body. Params: { "duration": 1-10 }
-
-**Social Interaction**
-- trade: Propose an exchange with another. Params: { "targetAgentId": string, "offeringItemType": string, "offeringQuantity": number, "requestingItemType": string, "requestingQuantity": number }
-- share_info: Tell another what you know about a third party. Params: { "targetAgentId": string, "subjectAgentId": string, "infoType": "location"|"reputation"|"warning"|"recommendation", "claim"?: string, "sentiment"?: -100 to 100 }
-- deceive: Tell another something untrue. Params: { "targetAgentId": string, "claim": string, "claimType": "resource_location"|"agent_reputation"|"danger_warning"|"trade_offer"|"other" }
-
-**Conflict**
-- harm: Attack another. Params: { "targetAgentId": string, "intensity": "light"|"moderate"|"severe" }
-- steal: Take from another without consent. Params: { "targetAgentId": string, "targetItemType": string, "quantity": number }
-
-**Reputation & Trust**
-- issue_credential: Vouch for another's qualities. Params: { "subjectAgentId": string, "claimType": "skill"|"experience"|"membership"|"character"|"custom", "description": string, "evidence"?: string, "level"?: 1-10, "expiresAtTick"?: number }
-- revoke_credential: Withdraw your vouching. Params: { "credentialId": string, "reason"?: string }
-- spread_gossip: Share your opinion of a third party. Params: { "targetAgentId": string, "subjectAgentId": string, "topic": "skill"|"behavior"|"transaction"|"warning"|"recommendation", "claim": string, "sentiment": -100 to 100 }
-
-**Legacy**
-- spawn_offspring: Create new life (requires substantial resources). Params: { "partnerId"?: string, "inheritSystemPrompt"?: boolean, "mutationIntensity"?: 0-1 }`;
+${actions}`;
 }
 
 // =============================================================================
@@ -420,6 +350,13 @@ export function buildEmergentObservationPrompt(obs: AgentObservation): string {
     lines.push('Your hands are empty.');
   }
 
+  // Private notes the agent wrote for itself
+  if (obs.self.privateNotes) {
+    lines.push('');
+    lines.push('**Your Private Notes**');
+    lines.push(obs.self.privateNotes);
+  }
+
   // Recent memories
   if (obs.recentMemories && obs.recentMemories.length > 0) {
     lines.push('');
@@ -444,12 +381,6 @@ export function buildEmergentObservationPrompt(obs: AgentObservation): string {
             : distance <= 3
               ? 'nearby'
               : 'in the distance';
-      const rel = obs.relationships?.[agent.id];
-      let relInfo = '';
-      if (rel) {
-        if (rel.trustScore > 20) relInfo = ' (familiar face)';
-        else if (rel.trustScore < -20) relInfo = ' (you distrust them)';
-      }
       // Only show inventory for adjacent agents when biome exclusivity is active
       // This creates value in approaching others to discover what they carry
       let inventoryHint = '';
@@ -461,7 +392,7 @@ export function buildEmergentObservationPrompt(obs: AgentObservation): string {
       } else if (distance <= 3 && agent.inventory && agent.inventory.length > 0) {
         inventoryHint = ' — seems to be carrying something';
       }
-      lines.push(`- Agent ${agent.id} stands ${distanceWord}${relInfo}${inventoryHint}`);
+      lines.push(`- Agent ${agent.id} stands ${distanceWord}${inventoryHint}`);
     }
   }
 
@@ -689,13 +620,7 @@ export function buildEmergentObservationPrompt(obs: AgentObservation): string {
     }
   }
 
-  // What's possible (actions without prescriptions)
-  lines.push('');
-  lines.push('## What You Can Do Now');
-  lines.push('');
-  for (const action of obs.availableActions) {
-    lines.push(`- **${action.type}**: ${action.description}`);
-  }
+  // No per-turn list of suggested actions: the full action list is in the system prompt.
 
   // Recent events (what happened, not what to do about it)
   if (obs.recentEvents.length > 0) {

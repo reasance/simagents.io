@@ -20,6 +20,8 @@ export interface ActionDecision {
   type: ActionType;
   params: ActionParams;
   reasoning?: string;
+  /** Replacement for the agent's private notes; absent keeps them */
+  notes?: string;
   telemetry?: DecisionTelemetry;
 }
 
@@ -54,6 +56,7 @@ export function toActionDecision(input: DecisionInput): ActionDecision {
       type: input.action,
       params: input.params as ActionParams,
       reasoning: input.reasoning,
+      ...(input.notes ? { notes: input.notes } : {}),
     };
   }
 

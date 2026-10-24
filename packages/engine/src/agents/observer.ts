@@ -109,6 +109,7 @@ export async function buildObservation(
     state: agent.state,
     // Include personality in observation (Phase 5)
     personality,
+    privateNotes: agent.privateNotes,
   };
 
   // Nearby agents (within visibility radius, excluding self)

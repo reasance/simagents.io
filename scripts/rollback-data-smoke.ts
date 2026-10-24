@@ -50,7 +50,7 @@ await context.route('https://api.anthropic.com/v1/messages', (route: any) => {
   const headers = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'POST, OPTIONS' };
   if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
   calls++;
-  return route.fulfill({ headers, contentType: 'application/json', body: JSON.stringify({ model: 'rollback-fixture', usage: { input_tokens: 12, output_tokens: 9 }, content: [{ type: 'text', text: '{"action":"signal","params":{"message":"rollback fixture","intensity":1},"reasoning":"Retained original synthetic response"}' }] }) });
+  return route.fulfill({ headers, contentType: 'application/json', body: JSON.stringify({ model: 'rollback-fixture', usage: { input_tokens: 12, output_tokens: 9 }, content: [{ type: 'text', text: '{"action":"speak","params":{"message":"rollback fixture"},"reasoning":"Retained original synthetic response"}' }] }) });
 });
 const page = await context.newPage();
 page.setDefaultTimeout(20000);

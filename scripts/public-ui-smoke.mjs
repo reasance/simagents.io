@@ -27,7 +27,7 @@ await context.route('https://api.anthropic.com/v1/messages', route => {
   const headers = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'POST, OPTIONS' };
   if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
   calls++;
-  const action = calls === 2 ? { action: 'sleep', params: { duration: 1 }, reasoning: 'Original model response' } : { action: 'signal', params: { message: 'fixture', intensity: 1 }, reasoning: 'Original model response' };
+  const action = calls === 2 ? { action: 'sleep', params: { duration: 1 }, reasoning: 'Original model response' } : { action: 'speak', params: { message: 'fixture' }, reasoning: 'Original model response' };
   return route.fulfill({ status: 200, headers, contentType: 'application/json', body: JSON.stringify({ model: 'fixture-reported-model', usage: { input_tokens: 12, output_tokens: 9 }, content: [{ type: 'text', text: JSON.stringify(action) }] }) });
 });
 await context.addInitScript(() => {

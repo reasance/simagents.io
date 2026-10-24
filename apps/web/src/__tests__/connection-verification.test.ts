@@ -48,3 +48,11 @@ test('credential locking cancels in-flight main-thread verification without retr
   await expect(verification).rejects.toThrow('Aborted');
   expect(calls).toBe(1);
 });
+test('a model that returns exactly the requested probe action passes verification', async () => {
+  globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
+    const prompt = String(JSON.parse(init!.body as string).input);
+    const requested = prompt.slice(prompt.indexOf('{'));
+    return Response.json({ output: [{ type: 'message', content: [{ type: 'output_text', text: requested }] }] });
+  }) as unknown as typeof fetch;
+  await verifyConnection(profile, 'fixture-model', 'fixture-key', undefined, undefined, 128);
+});

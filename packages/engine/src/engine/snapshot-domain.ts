@@ -27,7 +27,7 @@ export const snapshotEntitySchemas = {
   agents: row({ ...identity, ...timestamps, ...position, llmType: id, name: nullableText.optional(),
     connectionId: id.optional(), rosterEntryId: id.optional(), hunger: needs, energy: needs, health: needs,
     balance: amount, state: z.enum(['idle', 'walking', 'working', 'sleeping', 'dead', 'gestating']),
-    color: z.string().regex(/^#[0-9a-f]{6}$/i), personality: nullableText, diedAt: nullableDate }),
+    color: z.string().regex(/^#[0-9a-f]{6}$/i), personality: nullableText, diedAt: nullableDate, privateNotes: z.string().max(4000).optional() }),
   resourceSpawns: row({ ...identity, ...position, biome: id, resourceType: id, maxAmount: amount,
     currentAmount: amount, regenRate: amount, discovered: z.boolean(), createdAt: nullableDate }),
   shelters: row({ ...identity, ...position, canSleep: z.boolean(), ownerAgentId: nullableId, createdAt: nullableDate }),

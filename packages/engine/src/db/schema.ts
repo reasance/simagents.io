@@ -24,6 +24,8 @@ export interface Agent {
   state: string;
   color: string;
   personality: string | null;
+  /** Notes only this agent writes and reads, carried between its decisions */
+  privateNotes?: string;
   createdAt: Date;
   updatedAt: Date;
   diedAt: Date | null;

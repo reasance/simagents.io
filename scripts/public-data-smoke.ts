@@ -19,7 +19,7 @@ await context.route('**/*',(r:any)=>new URL(r.request().url()).origin===new URL(
 await context.route('https://api.anthropic.com/v1/messages',async(r:any)=>{
  const headers={'access-control-allow-origin':'*','access-control-allow-headers':'*','access-control-allow-methods':'POST, OPTIONS'};if(r.request().method()==='OPTIONS')return r.fulfill({status:204,headers});calls++;
  if(holdResumedRequest){await resumedRequestGate;return r.abort('aborted');}
- return r.fulfill({headers,contentType:'application/json',body:JSON.stringify({model:'synthetic-reported-model',usage:{input_tokens:12,output_tokens:9},content:[{type:'text',text:'{"action":"signal","params":{"message":"public data fixture","intensity":1},"reasoning":"Original unmodified model text"}'}]})});
+ return r.fulfill({headers,contentType:'application/json',body:JSON.stringify({model:'synthetic-reported-model',usage:{input_tokens:12,output_tokens:9},content:[{type:'text',text:'{"action":"speak","params":{"message":"public data fixture"},"reasoning":"Original unmodified model text"}'}]})});
 });
 const page=await context.newPage();await setSmokeLanguage(page);page.setDefaultTimeout(15000);page.on('pageerror',(e:Error)=>errors.push(e.message));
 async function exported(){const wait=page.waitForEvent('download');await openSimulationTool(page,'Export current world');return JSON.parse(await Bun.file(await(await wait).path()).text());}

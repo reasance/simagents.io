@@ -47,7 +47,7 @@ await context.route('https://api.anthropic.com/v1/messages', async (route: any) 
   calls++; callTimes.push(nativeClock.read().continuousMs); inFlight++; maxInFlight = Math.max(maxInFlight, inFlight);
   try {
     await new Promise(resolve => setTimeout(resolve, 75));
-    const action = calls === 1 ? { action: 'signal', params: { message: 'explicit probe', intensity: 1 } } : { action: 'sleep', params: { duration: 1 } };
+    const action = calls === 1 ? { action: 'speak', params: { message: 'explicit probe' } } : { action: 'sleep', params: { duration: 1 } };
     await route.fulfill({ status: 200, headers, contentType: 'application/json', body: JSON.stringify({ model: 'soak-fixture', usage: { input_tokens: 12, output_tokens: 9 }, content: [{ type: 'text', text: JSON.stringify(action) }] }) });
   } finally { inFlight--; }
 });
