@@ -487,7 +487,7 @@ export async function buildObservation(
     recentEvents,
     inventory,
     recentMemories,
-    relationships,
+    // System-computed trust stays internal: agents form their own views of each other.
     nearbyClaims,
     nearbyLocationNames,
     knownAgents,

@@ -216,7 +216,7 @@ function economicState() {
 }
 beforeEach(async () => {
   resetStore(); resetRuntimeConfig(); initializeRNG('matrix');
-  setRuntimeConfig({ needs: { hungerDecay: 0, energyDecay: 0 }, cooperation: { enabled: false } });
+  setRuntimeConfig({ needs: { hungerDecay: 0, energyDecay: 0 }, cooperation: { enabled: false }, puzzle: { enabled: true }, actions: { spawnOffspring: { enabled: true } } });
   executor = new ActionExecutor({ nowMs: () => 20 * 60000 });
   await createAgent({ id: 'a', llmType: 'fixture', balance: 1000, energy: 100, hunger: 80, x: 0, y: 0 });
   await createAgent({ id: 'b', llmType: 'fixture', balance: 1000, energy: 100, x: 0, y: 0 });

@@ -28,6 +28,7 @@ export async function handleSpawnOffspring(
 ): Promise<ActionResult> {
   const { partnerId, inheritSystemPrompt = true, mutationIntensity = 0.1 } = intent.params;
 
+  if (!getRuntimeConfig().actions.spawnOffspring.enabled) return { success: false, error: 'Reproduction is not available in this world' };
   if (!inheritSystemPrompt) return { success: false, error: 'Per-offspring system prompts are not supported; use inheritSystemPrompt=true' };
   const population = [...store.agents.values()].filter((a) => a.state !== 'dead').length;
   const pendingBirths = [...store.reproductionStates.values()].filter((r) => r.status === 'gestating').length;

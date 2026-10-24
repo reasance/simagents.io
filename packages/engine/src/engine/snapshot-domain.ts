@@ -105,6 +105,7 @@ export const runtimeOverridesSchema = partial({
     work: partial(numbers(['basePayPerTick', 'energyCostPerTick'])),
     sleep: partial(numbers(['energyRestoredPerTick'])),
     harm: partial({ damage: partial(numbers(['light', 'moderate', 'severe'])) }),
+    spawnOffspring: partial({ enabled: z.boolean() }),
   }),
   economy: partial({ currencyDecayRate: amount.max(1), currencyDecayInterval: positiveCount, currencyDecayThreshold: amount }),
   experiment: partial({ enablePersonalities: z.boolean(), normalizeCapabilities: z.boolean(), useSyntheticVocabulary: z.boolean(),

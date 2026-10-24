@@ -4,14 +4,19 @@ import { createIntent, getHandler, registerHandler } from '../../actions';
 import type { ActionParams, ActionType } from '../../actions/types';
 import { createAgent, getAgentById, killAgent } from '../../engine-memory/queries/agents';
 import { resetStore, store } from '../../engine-memory/store';
-import { resetRuntimeConfig } from '../../config';
+import { resetRuntimeConfig, setRuntimeConfig } from '../../config';
 import { createPuzzleGame, createPuzzleFragments, getAgentPuzzleContext, expirePuzzleGames } from '../../engine-memory/queries/puzzles';
 import { completeGestations } from '../../engine/reproduction';
 import { createRosterProviderFactory } from '../../engine/llm/roster-factory';
 import { storeMemory, decayStaleRelationships, updateRelationshipTrust } from '../../engine-memory/queries/memories';
 
 let executor: ActionExecutor;
-beforeEach(() => { resetStore(); resetRuntimeConfig(); executor = new ActionExecutor({ nowMs: () => 0 }); });
+beforeEach(() => {
+  resetStore(); resetRuntimeConfig();
+  // These mechanics are off by default; the tests cover them when a world enables them.
+  setRuntimeConfig({ puzzle: { enabled: true }, actions: { spawnOffspring: { enabled: true } } });
+  executor = new ActionExecutor({ nowMs: () => 0 });
+});
 const act = (id: string, type: ActionType, params: ActionParams) => executor.submit(createIntent(id, type, params, 0));
 async function puzzle() {
   const a = await createAgent({ id: 'a', llmType: 'fixture' });

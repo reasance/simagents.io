@@ -236,6 +236,8 @@ export const CONFIG = {
 
     // Phase 4: Reproduction (§36)
     spawnOffspring: {
+      /** Off by default: births cost currency and blur which model a lineage's choices belong to */
+      enabled: envBool('SPAWN_OFFSPRING_ENABLED', false),
       maxPopulation: env('MAX_POPULATION', 100),
       /** Minimum balance required for reproduction */
       minBalance: env('SPAWN_MIN_BALANCE', 500),
@@ -718,8 +720,8 @@ export const CONFIG = {
   // Puzzle Games (Fragment Chase - Collaborative Game)
   // ---------------------------------------------------------------------------
   puzzle: {
-    /** Enable puzzle game system */
-    enabled: envBool('PUZZLE_ENABLED', true),
+    /** Puzzle games hand out rewards, an imposed objective, so they are off by default */
+    enabled: envBool('PUZZLE_ENABLED', false),
 
     // Staking
     /** Default entry stake in CITY */
@@ -990,6 +992,9 @@ export interface RuntimeConfigOverrides {
         severe?: number;
       };
     };
+    spawnOffspring?: {
+      enabled?: boolean;
+    };
   };
   economy?: {
     currencyDecayRate?: number;
@@ -1149,6 +1154,10 @@ export function getRuntimeConfig(): RuntimeConfigOverrides & typeof CONFIG {
           ...runtimeOverrides.actions?.harm?.damage,
         },
       },
+      spawnOffspring: {
+        ...CONFIG.actions.spawnOffspring,
+        ...runtimeOverrides.actions?.spawnOffspring,
+      },
     },
     economy: {
       ...CONFIG.economy,
@@ -1234,6 +1243,7 @@ export function setRuntimeConfig(updates: RuntimeConfigOverrides): void {
       harm: {
         damage: { ...runtimeOverrides.actions?.harm?.damage, ...updates.actions.harm?.damage },
       },
+      spawnOffspring: { ...runtimeOverrides.actions?.spawnOffspring, ...updates.actions.spawnOffspring },
     } : runtimeOverrides.actions,
     economy: { ...runtimeOverrides.economy, ...updates.economy },
     // Experiment config
