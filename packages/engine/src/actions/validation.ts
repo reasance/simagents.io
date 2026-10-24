@@ -10,7 +10,7 @@ const coordinate = z.number().finite().int().nonnegative();
 const sentiment = z.number().finite().min(-100).max(100);
 const employment = z.object({ employmentId: id });
 const game = z.object({ gameId: id });
-const schemas: Record<ActionType, z.AnyZodObject> = {
+const schemas: Record<ActionType, z.ZodObject> = {
   move: z.object({ toX: coordinate, toY: coordinate }),
   buy: z.object({ itemType: text, quantity: positive.optional(), locationId: id.optional() }),
   consume: z.object({ itemType: text, quantity: positive.optional() }),
@@ -52,10 +52,11 @@ export function validateActionParams(type: ActionType, params: unknown): string 
   if (!schema) return 'Unknown action type';
   const result = schema.strict().safeParse(params);
   if (!result.success) return result.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; ');
-  const values = result.data;
+  const values = result.data as Record<string, unknown> & { position?: { x: number; y: number } };
   const size = getRuntimeConfig().simulation.gridSize;
   for (const [key, limit] of [['toX', size], ['x', size], ['toY', size], ['y', size]] as const) {
-    if (typeof values[key] === 'number' && values[key] >= limit) return `${key} is outside the world`;
+    const value = values[key];
+    if (typeof value === 'number' && value >= limit) return `${key} is outside the world`;
   }
   if (values.position && (values.position.x >= size || values.position.y >= size)) return 'Position is outside the world';
   return undefined;

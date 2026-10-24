@@ -103,7 +103,7 @@ export const WorldEventSchema = z.object({
   type: EventTypeSchema,
   tick: z.number(),
   timestamp: z.number(),
-  data: z.record(z.unknown()),
+  data: z.record(z.string(), z.unknown()),
 });
 
 // ============================================
