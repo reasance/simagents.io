@@ -69,7 +69,12 @@ function reasoning(input: AdapterInput): Record<string, unknown> {
   if (kind === 'effort') {
     if (typeof value !== 'string' || !['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'].includes(value)) throw new Error('Invalid reasoning effort');
     if (input.connection.protocol === 'openai-responses') return { reasoning: { effort: value } };
-    if (input.connection.protocol !== 'chat-completions') throw new Error('Effort reasoning requires an OpenAI protocol');
+    // Claude 5.x replaced manual thinking budgets with adaptive thinking steered by effort.
+    if (input.connection.protocol === 'anthropic-messages') {
+      if (!['low', 'medium', 'high', 'xhigh', 'max'].includes(value)) throw new Error('Invalid Anthropic effort');
+      return { output_config: { effort: value } };
+    }
+    if (input.connection.protocol !== 'chat-completions') throw new Error('Effort reasoning requires an OpenAI-compatible or Anthropic protocol');
     return { reasoning_effort: value };
   }
   if (input.connection.protocol !== 'chat-completions' || typeof value !== 'boolean') throw new Error('This reasoning switch requires a boolean and Chat Completions');
@@ -89,11 +94,15 @@ const ADAPTERS: Record<TextProtocol, (input: AdapterInput) => Record<string, unk
     ...(i.capabilities.output === 'json-object' ? { response_format: { type: 'json_object' } } :
       i.capabilities.output === 'json-schema' ? { response_format: { type: 'json_schema', json_schema: { name: 'simulation_action', strict: true, schema: DECISION_SCHEMA } } } : {}),
   }),
-  'anthropic-messages': (i) => ({
-    model: i.modelId, system: i.prompt.system, messages: [{ role: 'user', content: i.prompt.user }],
-    max_tokens: i.maxTokens, ...sampling(i), ...reasoning(i),
-    ...(i.capabilities.output === 'json-schema' ? { output_config: { format: { type: 'json_schema', schema: DECISION_SCHEMA } } } : {}),
-  }),
+  'anthropic-messages': (i) => {
+    const { output_config: effortConfig, ...thinking } = reasoning(i) as { output_config?: Record<string, unknown> };
+    const outputConfig = { ...effortConfig, ...(i.capabilities.output === 'json-schema' ? { format: { type: 'json_schema', schema: DECISION_SCHEMA } } : {}) };
+    return {
+      model: i.modelId, system: i.prompt.system, messages: [{ role: 'user', content: i.prompt.user }],
+      max_tokens: i.maxTokens, ...sampling(i), ...thinking,
+      ...(Object.keys(outputConfig).length > 0 ? { output_config: outputConfig } : {}),
+    };
+  },
   'gemini-generate-content': (i) => ({
     systemInstruction: { parts: [{ text: i.prompt.system }] }, contents: [{ role: 'user', parts: [{ text: i.prompt.user }] }],
     generationConfig: { maxOutputTokens: i.maxTokens, ...sampling(i), ...reasoning(i),

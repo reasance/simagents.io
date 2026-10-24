@@ -81,3 +81,28 @@ test('resuming a converted legacy roster upgrades stored agent connection identi
   expect(agent.rosterEntryId).toBe('old-roster-id'); expect(agent.connectionId).toBe('new-profile');
   resetStore();
 });
+test('Claude 5.x effort travels in output_config and merges with structured output', () => {
+  const connection = defaultConnection('claude');
+  const capabilities = defaultCapabilities('claude', 'claude-opus-5-5', connection.protocol);
+  expect(capabilities.reasoning).toBe('effort');
+  const plain = buildProtocolRequest({ connection, capabilities, modelId: 'claude-opus-5-5', apiKey: 'fixture', maxTokens: 256, prompt: { system: 's', user: 'u' }, reasoningLevel: 'max' });
+  expect(plain.body.output_config).toEqual({ effort: 'max' });
+  expect(plain.body.thinking).toBeUndefined();
+  const structured = buildProtocolRequest({ connection, capabilities: { ...capabilities, output: 'json-schema' }, modelId: 'claude-opus-5-5', apiKey: 'fixture', maxTokens: 256, prompt: { system: 's', user: 'u' }, reasoningLevel: 'low' });
+  expect(structured.body.output_config).toMatchObject({ effort: 'low', format: { type: 'json_schema' } });
+  expect(() => buildProtocolRequest({ connection, capabilities, modelId: 'claude-opus-5-5', apiKey: 'fixture', maxTokens: 256, prompt: { system: 's', user: 'u' }, reasoningLevel: 'none' })).toThrow('Anthropic effort');
+});
+test('Kimi and MiniMax use max_completion_tokens with a top-level reasoning effort', () => {
+  for (const [provider, modelId] of [['kimi', 'kimi-k3.1-pro'], ['minimax', 'MiniMax-M3.1-Flash']] as const) {
+    const connection = defaultConnection(provider, 'https://relay.example.test');
+    const request = buildProtocolRequest({ connection, capabilities: defaultCapabilities(provider, modelId, connection.protocol), modelId, apiKey: 'fixture', maxTokens: 256, prompt: { system: 's', user: 'u' }, reasoningLevel: 'max' });
+    expect(request.body.max_completion_tokens).toBe(256);
+    expect(request.body.max_tokens).toBeUndefined();
+    expect(request.body.reasoning_effort).toBe('max');
+  }
+});
+test('Mistral thinking chunks are kept out of the decision text', () => {
+  const response = extractProviderResponse('mistral', { choices: [{ message: { content: [{ type: 'thinking', thinking: [{ type: 'text', text: 'private reasoning' }] }, { type: 'text', text: '{"action":"sleep"}' }] } }] }, 'chat-completions');
+  expect(response.text).toBe('{"action":"sleep"}');
+  expect(response.thinkingText).toBe('private reasoning');
+});

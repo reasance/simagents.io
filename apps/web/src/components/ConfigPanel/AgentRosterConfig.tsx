@@ -171,7 +171,7 @@ function ReasoningControl({ entry, reasoning, onUpdate }: ReasoningControlProps)
 export function AgentRosterConfig() {
   useLocale();
   const roster = useAgentRoster();
-  const { addEntry, removeEntry, updateEntry, resetRoster } = useRosterStore();
+  const { addEntry, duplicateEntry, removeEntry, updateEntry, resetRoster } = useRosterStore();
   useApiKeysStore((state) => state.status);
   const keys = getActiveApiKeys();
   const proxyUrl = useProxyUrl();
@@ -226,12 +226,20 @@ export function AgentRosterConfig() {
                   />
                   <span className="text-xs font-medium text-gray-300 truncate">{translate("Agent")}{" "}{index + 1}</span>
                 </div>
+                <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => duplicateEntry(index)}
+                  aria-label={translate('Duplicate {agent} with another effort level', { agent: entry.name })}
+                  className="text-xs text-gray-400 hover:text-blue-300"
+                >{translate("Duplicate")}</button>
                 <button
                   type="button"
                   onClick={() => removeEntry(index)}
                   disabled={roster.length <= 1}
                   className="text-xs text-gray-500 hover:text-red-300 disabled:opacity-40 disabled:hover:text-gray-500"
                 >{translate("Remove")}</button>
+                </div>
               </div>
 
               <AgentConnectionConfig entry={entry} update={(patch) => update(index, patch)} />

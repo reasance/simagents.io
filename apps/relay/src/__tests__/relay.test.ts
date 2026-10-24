@@ -156,3 +156,10 @@ test('a slow request body is cancelled at the deadline before contacting a provi
   const relay = createRelay((async () => { calls++; return Response.json({}); }) as unknown as typeof fetch, 10);
   expect((await relay(incoming, env())).status).toBe(504); expect(cancelled).toBe(true); expect(calls).toBe(0);
 });
+test('Claude effort requests pass the relay policy only with documented effort values', () => {
+  const claude = (outputConfig: Record<string, unknown>) => ({ providerId: 'claude', protocol: 'anthropic-messages', endpoint: 'https://api.anthropic.com/v1/messages', modelId: 'claude-opus-5-5',
+    body: { model: 'claude-opus-5-5', system: 'private system', messages: [{ role: 'user', content: 'private prompt' }], max_tokens: 128, output_config: outputConfig } });
+  expect(approvedRequest(claude({ effort: 'max' }), 'inference').body?.output_config).toEqual({ effort: 'max' });
+  expect(() => approvedRequest(claude({ effort: 'adaptive' }), 'inference')).toThrow();
+  expect(() => approvedRequest(claude({ effort: 'low', budget: 10 }), 'inference')).toThrow();
+});

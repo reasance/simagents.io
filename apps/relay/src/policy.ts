@@ -26,7 +26,8 @@ const bodies: Record<TextProtocol, z.ZodTypeAny> = {
     response_format: chatFormat.optional(), provider: z.object({ allow_fallbacks: z.literal(false), require_parameters: z.literal(true) }).strict().optional(),
   }).strict().refine((body) => (body.max_tokens !== undefined) !== (body.max_completion_tokens !== undefined)),
   'anthropic-messages': z.object({ model, system: text, messages, max_tokens: tokens, temperature, thinking,
-    output_config: z.object({ format: z.object({ type: z.literal('json_schema'), schema: actionSchema }).strict() }).strict().optional() }).strict(),
+    output_config: z.object({ format: z.object({ type: z.literal('json_schema'), schema: actionSchema }).strict().optional(),
+      effort: z.enum(['low', 'medium', 'high', 'xhigh', 'max']).optional() }).strict().optional() }).strict(),
   'gemini-generate-content': z.object({
     systemInstruction: z.object({ parts: z.array(z.object({ text }).strict()).min(1).max(8) }).strict(),
     contents: z.array(z.object({ role: z.enum(['user', 'model']), parts: z.array(z.object({ text }).strict()).min(1).max(8) }).strict()).min(1).max(8),

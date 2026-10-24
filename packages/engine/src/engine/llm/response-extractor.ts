@@ -69,13 +69,14 @@ function extractOpenAICompatible(json: unknown): ExtractedLLMResponse {
   const first = asRecord(choices[0]);
   const message = asRecord(first.message);
   const usage = asRecord(data.usage);
+  const chunkThinking = thinkingChunksToText(message.content);
 
   return {
     text: messageContentToText(message.content),
     usage: tokenUsage(usage.prompt_tokens, usage.completion_tokens),
     costEligible: completeUsage(usage.prompt_tokens, usage.completion_tokens) && notCached(asRecord(usage.prompt_tokens_details).cached_tokens),
     thinkingText:
-      typeof message.reasoning_content === 'string' ? message.reasoning_content : undefined,
+      typeof message.reasoning_content === 'string' ? message.reasoning_content : chunkThinking,
   };
 }
 
@@ -105,12 +106,25 @@ function messageContentToText(content: unknown): string {
   return content
     .map((part) => {
       const item = asRecord(part);
+      // Mistral returns reasoning as typed thinking chunks next to the answer text.
+      if (item.type === 'thinking') return '';
       if (typeof item.text === 'string') return item.text;
       if (typeof item.content === 'string') return item.content;
       return '';
     })
     .filter(Boolean)
     .join('\n');
+}
+
+function thinkingChunksToText(content: unknown): string | undefined {
+  if (!Array.isArray(content)) return undefined;
+  const text = content
+    .map(asRecord)
+    .filter((item) => item.type === 'thinking')
+    .map((item) => typeof item.text === 'string' ? item.text : Array.isArray(item.thinking) ? messageContentToText(item.thinking) : '')
+    .filter(Boolean)
+    .join('\n');
+  return text || undefined;
 }
 
 function tokenUsage(input: unknown, output: unknown): ExtractedLLMResponse['usage'] | undefined {

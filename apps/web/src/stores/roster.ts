@@ -1,6 +1,7 @@
 import {
   DEFAULT_AGENT_ROSTER,
   getDefaultModelId,
+  getModelCatalogEntry,
   isLLMProviderId,
   isRosterProvider,
   type AgentRosterEntry,
@@ -18,6 +19,8 @@ interface RosterState {
   roster: AgentRosterEntry[];
   addEntry: (entry: AddRosterEntry) => void;
   removeEntry: (index: number) => void;
+  /** Copy an entry as a new agent, preferring an effort level no other copy of that model uses. */
+  duplicateEntry: (index: number) => void;
   updateEntry: (index: number, patch: Partial<AgentRosterEntry>) => void;
   setRoster: (roster: AgentRosterEntry[]) => void;
   resetRoster: () => void;
@@ -35,6 +38,15 @@ function cloneDefaultRoster(): AgentRosterEntry[] {
 function defaultName(provider: AgentRosterProvider, index: number): string {
   const label = provider.replace(/^baseline_/, '').replace(/_/g, '-');
   return `${label}-${index + 1}`;
+}
+
+function nextUnusedReasoningLevel(roster: AgentRosterEntry[], source: AgentRosterEntry): AgentRosterEntry['reasoningLevel'] {
+  const reasoning = isLLMProviderId(source.provider) ? getModelCatalogEntry(source.provider, source.modelId)?.reasoning : undefined;
+  if (reasoning?.kind !== 'effort') return source.reasoningLevel;
+  const used = new Set(roster
+    .filter((entry) => entry.provider === source.provider && entry.modelId === source.modelId)
+    .map((entry) => entry.reasoningLevel ?? reasoning.default));
+  return reasoning.levels.find((level) => !used.has(level)) ?? source.reasoningLevel;
 }
 
 function defaultModelId(provider: AgentRosterProvider): string {
@@ -67,11 +79,12 @@ function normalizeEntry(
 
 /** Names are display labels; connection identity is retained by entry.id. */
 function dedupeNames(entries: AgentRosterEntry[]): AgentRosterEntry[] {
-  const seen = new Map<string, number>();
+  const taken = new Set<string>();
   return entries.map((entry) => {
-    const count = seen.get(entry.name) ?? 0;
-    seen.set(entry.name, count + 1);
-    return count === 0 ? entry : { ...entry, name: `${entry.name} (${count + 1})` };
+    let name = entry.name;
+    for (let suffix = 2; taken.has(name); suffix += 1) name = `${entry.name} (${suffix})`;
+    taken.add(name);
+    return name === entry.name ? entry : { ...entry, name };
   });
 }
 
@@ -116,6 +129,18 @@ export const useRosterStore = create<RosterState>((set, get) => ({
     if (!normalized) return;
 
     const nextRoster = dedupeNames([...roster, normalized]);
+    saveRosterToStorage(nextRoster);
+    set({ roster: nextRoster });
+  },
+
+  duplicateEntry: (index) => {
+    const roster = get().roster;
+    const source = roster[index];
+    if (!source) return;
+    const copy = normalizeEntry({ ...source, id: crypto.randomUUID(), reasoningLevel: nextUnusedReasoningLevel(roster, source) }, roster.length);
+    if (!copy) return;
+
+    const nextRoster = dedupeNames([...roster, copy]);
     saveRosterToStorage(nextRoster);
     set({ roster: nextRoster });
   },

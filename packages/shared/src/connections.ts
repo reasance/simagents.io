@@ -58,7 +58,7 @@ export function defaultCapabilities(provider: string, modelId: string, protocol:
   const kind = known?.reasoning.kind;
   return {
     temperature: !!known && kind === 'none', output: protocol === 'gemini-generate-content' ? 'json-object' : 'text-json',
-    tokenParameter: provider === 'codex' ? 'max_completion_tokens' : 'max_tokens', maxOutputTokens: 32768,
+    tokenParameter: ['codex', 'kimi', 'minimax'].includes(provider) ? 'max_completion_tokens' : 'max_tokens', maxOutputTokens: 32768,
     reasoning: !known || kind === 'none' || kind === 'model-swap' ? 'none'
       : protocol === 'gemini-generate-content' ? (modelId.startsWith('gemini-2.5') ? 'budget' : 'gemini-level')
       : kind === 'budget' ? 'budget' : kind === 'effort' ? 'effort' : provider === 'qwen' ? 'enable-thinking' : 'thinking-toggle',
