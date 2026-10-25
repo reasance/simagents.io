@@ -326,3 +326,24 @@ export function getModelCatalogEntry(
 export function getDefaultModelId(provider: LLMType): string {
   return getProviderCatalogEntry(provider)?.defaultModelId ?? provider;
 }
+
+/**
+ * Bring a saved reasoning choice in line with the model's current controls.
+ * When a vendor moves a model from thinking budgets to effort levels (Claude
+ * Sonnet 5, Opus 4.8, Fable 5), a stored budget or unknown level reverts to the
+ * provider default instead of failing every request.
+ */
+export function reconcileReasoning(
+  provider: AgentRosterProvider,
+  modelId: string,
+  reasoningLevel: ReasoningLevel | undefined,
+  capabilities: AgentRosterEntry['capabilities'],
+): Pick<AgentRosterEntry, 'reasoningLevel' | 'capabilities'> {
+  const reasoning = isLLMProviderId(provider) ? getModelCatalogEntry(provider, modelId)?.reasoning : undefined;
+  if (reasoning?.kind !== 'effort') return { reasoningLevel, capabilities };
+  const fits = typeof reasoningLevel === 'string' && reasoning.levels.includes(reasoningLevel);
+  return {
+    reasoningLevel: fits ? reasoningLevel : undefined,
+    capabilities: capabilities?.reasoning === 'budget' ? { ...capabilities, reasoning: 'effort' } : capabilities,
+  };
+}

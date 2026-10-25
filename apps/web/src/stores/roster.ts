@@ -4,6 +4,7 @@ import {
   getModelCatalogEntry,
   isLLMProviderId,
   isRosterProvider,
+  reconcileReasoning,
   type AgentRosterEntry,
   type AgentRosterProvider,
 } from '@simagents/shared';
@@ -63,15 +64,16 @@ function normalizeEntry(
   const modelId = entry.modelId?.trim() || defaultModelId(provider);
   const name = entry.name?.trim() || defaultName(provider, index);
   const color = entry.color?.trim() || DEFAULT_COLOR;
+  const { reasoningLevel, capabilities } = reconcileReasoning(provider, modelId, entry.reasoningLevel, entry.capabilities);
 
   return {
     connectionId: entry.connectionId,
-    capabilities: entry.capabilities,
+    capabilities,
     id: entry.id ?? `legacy:${name}`,
     name,
     provider,
     modelId,
-    ...(entry.reasoningLevel !== undefined ? { reasoningLevel: entry.reasoningLevel } : {}),
+    ...(reasoningLevel !== undefined ? { reasoningLevel } : {}),
     color,
     personality: entry.personality ?? null,
   };

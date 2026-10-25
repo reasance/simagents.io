@@ -18,3 +18,17 @@ test('a model without effort levels is copied with its reasoning setting unchang
   useRosterStore.getState().duplicateEntry(0);
   expect(useRosterStore.getState().roster.map((entry) => entry.reasoningLevel)).toEqual([true, true]);
 });
+
+test('a saved thinking budget on a model that now takes effort levels reverts to the provider default', () => {
+  const budget = { temperature: false, output: 'text-json', tokenParameter: 'max_tokens', reasoning: 'budget', maxOutputTokens: 32768 } as const;
+  useRosterStore.getState().setRoster([
+    { id: 'sonnet', name: 'Agent 1', provider: 'claude', modelId: 'claude-sonnet-5', reasoningLevel: 4096, capabilities: budget, color: '#e07a5f' },
+    { id: 'opus', name: 'Agent 2', provider: 'claude', modelId: 'claude-opus-5-5', reasoningLevel: 'max', color: '#e07a5f' },
+    { id: 'haiku', name: 'Agent 3', provider: 'claude', modelId: 'claude-haiku-4-5', reasoningLevel: 4096, capabilities: budget, color: '#e07a5f' },
+  ]);
+  const [sonnet, opus, haiku] = useRosterStore.getState().roster;
+  expect(sonnet.reasoningLevel).toBeUndefined();
+  expect(sonnet.capabilities?.reasoning).toBe('effort');
+  expect(opus.reasoningLevel).toBe('max');
+  expect(haiku).toMatchObject({ reasoningLevel: 4096, capabilities: { reasoning: 'budget' } });
+});

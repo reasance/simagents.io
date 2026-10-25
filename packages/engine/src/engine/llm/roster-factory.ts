@@ -4,6 +4,7 @@ import {
   isBaselineProviderId,
   isDecisionProtocol,
   isLLMProviderId,
+  reconcileReasoning,
   type AgentRosterEntry,
   type LLMType,
   type ConnectionProfile,
@@ -104,6 +105,9 @@ export function createRosterProviderFactory(
       });
     }
 
+    // Saved worlds may predate a model's move from thinking budgets to effort levels.
+    const modelId = entry.modelId || getDefaultModelId(provider);
+    const { reasoningLevel, capabilities } = reconcileReasoning(provider, modelId, entry.reasoningLevel, entry.capabilities);
     return new LLMDecisionProvider({
       provider,
       budget: options.budget,
@@ -114,9 +118,9 @@ export function createRosterProviderFactory(
       relayAccessToken: connection?.relayCredentialRef ? keySource.getKey(connection.relayCredentialRef) : undefined,
       getRelayAccessToken: connection?.transport === 'official-relay' && options.getRelayAccessToken
         ? () => options.getRelayAccessToken!(connection) : undefined,
-      capabilities: entry.capabilities,
-      modelId: entry.modelId || getDefaultModelId(provider),
-      reasoningLevel: entry.reasoningLevel,
+      capabilities,
+      modelId,
+      reasoningLevel,
       apiKey,
       proxyUrl: options.proxyUrl,
       maxTokens: options.maxTokens,
