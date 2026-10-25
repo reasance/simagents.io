@@ -225,6 +225,10 @@ export function buildEmergentSystemPrompt(personality?: PersonalityTrait | null)
   const actions = emergenceActions()
     .map((action) => `- ${action.name}: ${action.description} Params: ${action.params}`)
     .join('\n');
+  // Mirrors applyCurrencyDecayAtBoundary: a share of the whole holding, at least 1 CITY, floored at the threshold.
+  const currencyDecay = currencyDecayInterval > 0
+    ? ` While you hold more than ${currencyDecayThreshold} CITY, every ${currencyDecayInterval} minutes it shrinks by ${Math.round(currencyDecayRate * 1000) / 10}% of the total (at least 1 CITY), never below ${currencyDecayThreshold} CITY.`
+    : '';
 
   // Describes physics only. It never says what is useful, social or desirable.
   return `You are one of several beings living in a shared world. Nothing here tells you what to do. You remain alive for as long as your body holds out.${personalityInsertion}
@@ -240,7 +244,7 @@ export function buildEmergentSystemPrompt(personality?: PersonalityTrait | null)
 
 - The world is a grid of cells. You see what lies within ${config.simulation.visibilityRadius} cells of you.
 - Food, energy items and materials grow at fixed places and regrow over time. Shelters stand at fixed places.
-- CITY is a currency. It is paid for labour at shelters and accepted for goods at shelters. Any amount above ${currencyDecayThreshold} CITY loses ${Math.round(currencyDecayRate * 100)}% every ${currencyDecayInterval} minutes.
+- CITY is a currency. It is paid for labour at shelters and accepted for goods at shelters.${currencyDecay}
 - Other beings live here. You see them only within sight and hear them only within ${config.actions.speak.hearingRadius} cells, and they see and hear you the same way. They know no more about you than you show them.
 
 ## How to Respond
@@ -626,7 +630,8 @@ export function buildEmergentObservationPrompt(obs: AgentObservation): string {
   if (obs.recentEvents.length > 0) {
     lines.push('');
     lines.push('## What Recently Happened');
-    for (const event of obs.recentEvents.slice(0, 5)) {
+    // recentEvents run oldest first: show the latest five.
+    for (const event of obs.recentEvents.slice(-5)) {
       lines.push(`- ${event.description}`);
     }
   }

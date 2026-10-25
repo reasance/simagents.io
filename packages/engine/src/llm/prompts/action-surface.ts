@@ -29,6 +29,11 @@ export const ACTION_ALIASES: Readonly<Record<string, ActionType>> = {
   take: 'steal',
 };
 
+/** The name an agent knows an engine action by: its physical alias when the engine name judges the act. */
+export function surfaceActionName(actionType: string): string {
+  return Object.keys(ACTION_ALIASES).find((alias) => ACTION_ALIASES[alias] === actionType) ?? actionType;
+}
+
 export function emergenceActions(): SurfaceAction[] {
   const config = getRuntimeConfig();
   const { prices } = config.actions.buy;

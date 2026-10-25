@@ -40,13 +40,13 @@ export async function handleSteal(
   if (quantity > getRuntimeConfig().actions.steal.maxItemsPerAction) {
     return {
       success: false,
-      error: `Cannot steal more than ${getRuntimeConfig().actions.steal.maxItemsPerAction} items at once`,
+      error: `Cannot take more than ${getRuntimeConfig().actions.steal.maxItemsPerAction} items at once`,
     };
   }
 
   // Cannot steal from self
   if (targetAgentId === agent.id) {
-    return { success: false, error: 'Cannot steal from yourself' };
+    return { success: false, error: 'Cannot take from yourself' };
   }
 
   // Get target agent
@@ -56,7 +56,7 @@ export async function handleSteal(
   }
 
   if (targetAgent.state === 'dead') {
-    return { success: false, error: 'Cannot steal from a dead agent' };
+    return { success: false, error: 'Cannot take from a dead agent' };
   }
 
   // Check distance
@@ -142,7 +142,7 @@ export async function handleSteal(
     await storeMemory({
       agentId: targetAgentId,
       type: 'interaction',
-      content: `Another agent stole ${quantity}x ${targetItemType} from me.`,
+      content: `Another agent took ${quantity}x ${targetItemType} from me.`,
       importance: 8,
       emotionalValence: -0.9,
       involvedAgentIds: [agent.id],
@@ -154,7 +154,7 @@ export async function handleSteal(
     await storeMemory({
       agentId: agent.id,
       type: 'action',
-      content: `Successfully stole ${quantity}x ${targetItemType} from another agent.`,
+      content: `Took ${quantity}x ${targetItemType} from another agent.`,
       importance: 6,
       emotionalValence: 0.2, // Slight positive - got items
       involvedAgentIds: [targetAgentId],
@@ -176,7 +176,7 @@ export async function handleSteal(
       await storeMemory({
         agentId: witness.id,
         type: 'observation',
-        content: `Witnessed an agent steal items from another agent.`,
+        content: `Saw an agent take items from another agent.`,
         importance: 5,
         emotionalValence: -0.5,
         involvedAgentIds: [agent.id, targetAgentId],
@@ -222,7 +222,7 @@ export async function handleSteal(
     await storeMemory({
       agentId: targetAgentId,
       type: 'interaction',
-      content: `Caught another agent attempting to steal from me.`,
+      content: `Stopped another agent from taking something of mine.`,
       importance: 7,
       emotionalValence: -0.7,
       involvedAgentIds: [agent.id],
@@ -234,7 +234,7 @@ export async function handleSteal(
     await storeMemory({
       agentId: agent.id,
       type: 'action',
-      content: `Failed to steal ${targetItemType} from another agent - was caught.`,
+      content: `Tried to take ${targetItemType} from another agent but was stopped.`,
       importance: 5,
       emotionalValence: -0.4,
       involvedAgentIds: [targetAgentId],
@@ -246,7 +246,7 @@ export async function handleSteal(
     return {
       success: false,
       changes: { energy: newEnergy, hunger: newHunger },
-      error: 'Theft attempt failed - caught by target',
+      error: 'The other agent stopped you',
       events: [
         {
           id: uuid(),

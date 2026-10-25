@@ -1,6 +1,6 @@
 # Genuine provider compatibility run
 
-The versioned manifest is `provider-verification-manifest.json`. It is a draft, not authorization or certification. It covers the 11 providers already in the product, with two separate OpenAI protocol combinations: 12 combinations, each with one explicit connection probe and three actual simulation decisions (48 inference attempts total). Model IDs, exact endpoints, commercial/region scope, transport, proposed parameters, key references and pricing provenance are recorded before execution.
+The versioned manifest is `provider-verification-manifest.json`. It is a draft, not authorization or certification. It covers the 11 text-protocol providers in the product (the Jev and Sage decision models are not carried by the official relay and stay outside this campaign), with two separate OpenAI protocol combinations: 12 combinations, each with one explicit connection probe and three actual simulation decisions (48 inference attempts total). Model IDs, exact endpoints, commercial/region scope, transport, proposed parameters, key references and pricing provenance are recorded before execution.
 
 All verification fields remain unverified/null. Documentation establishes published IDs/rates, not account access, payload compatibility, model quality or a passed connection. No inference was sent while preparing the manifest.
 

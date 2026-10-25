@@ -134,18 +134,22 @@ export function parseWorldExportFile(input: unknown): WorldExportFile {
   return { snapshot: candidate.snapshot, events: candidate.events };
 }
 
-export function downloadWorldExport(file: WorldExportFile): void {
-  const tick = file.snapshot.store.worldState.currentTick;
-  const suffix = typeof tick === 'number' ? tick : file.snapshot.savedAtSimTimeMs;
-  const blob = new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
+/** Save text as a file through a temporary object URL. */
+export function downloadText(filename: string, content: string, type: string): void {
+  const url = URL.createObjectURL(new Blob([content], { type }));
   const anchor = document.createElement('a');
   anchor.href = url;
-  anchor.download = `simagents-world-${suffix}.json`;
+  anchor.download = filename;
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
   URL.revokeObjectURL(url);
+}
+
+export function downloadWorldExport(file: WorldExportFile): void {
+  const tick = file.snapshot.store.worldState.currentTick;
+  const suffix = typeof tick === 'number' ? tick : file.snapshot.savedAtSimTimeMs;
+  downloadText(`simagents-world-${suffix}.json`, JSON.stringify(file, null, 2), 'application/json');
 }
 
 function normalizeEventRing(events: WorldEvent[]): WorldEvent[] {

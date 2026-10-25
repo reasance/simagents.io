@@ -115,14 +115,12 @@ export async function handleForage(
 
   // Calculate success rate with solo penalty OR cooperation bonus
   let effectiveSuccessRate = config.baseSuccessRate;
-  let cooperationNote = '';
   const alone = await isAgentAlone(agent.id, agent.x, agent.y);
   const nearbyForagerCount = await countNearbyForagers(agent.id, agent.x, agent.y);
 
   if (alone && runtimeConfig.cooperation.enabled) {
     // Solo penalty: reduced success rate when foraging alone
     effectiveSuccessRate *= runtimeConfig.cooperation.solo.forageSuccessRateModifier;
-    cooperationNote = ' (solo foraging penalty)';
   } else if (nearbyForagerCount > 0 && runtimeConfig.cooperation.enabled) {
     // Cooperation bonus: +15% per nearby agent, capped at +45%
     const bonusPerAgent = runtimeConfig.cooperation.forage?.nearbyAgentBonus ?? 0.15;
@@ -131,7 +129,6 @@ export async function handleForage(
     effectiveSuccessRate *= (1 + coopBonus);
     // Cap at 95% max success rate
     effectiveSuccessRate = Math.min(effectiveSuccessRate, 0.95);
-    cooperationNote = ` (cooperation bonus: +${Math.round(coopBonus * 100)}% from ${nearbyForagerCount} nearby)`;
   }
 
   // Calculate success (random based on success rate)

@@ -60,7 +60,8 @@ export function decisionOptions(obs: AgentObservation): DecisionOption[] {
     add(`gather_${spawn.resourceType}`, `Collect ${quantity} ${spawn.resourceType} growing here`, 'gather', { resourceType: spawn.resourceType, quantity });
   }
   for (const item of obs.inventory ?? []) {
-    if (item.quantity > 0) add(`consume_${item.type}`, `Consume one ${item.type} you carry`, 'consume', { itemType: item.type });
+    // Only items with a consume effect: the handler rejects anything else.
+    if (item.quantity > 0 && config.actions.consume.effects[item.type]) add(`consume_${item.type}`, `Consume one ${item.type} you carry`, 'consume', { itemType: item.type });
   }
 
   if (obs.nearbyShelters?.some((s) => s.x === x && s.y === y)) {

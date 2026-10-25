@@ -58,6 +58,7 @@ import {
   getAgentActivePuzzleGame,
 } from '../db/queries/puzzles';
 import { CONFIG, getRuntimeConfig } from '../config';
+import { surfaceActionName } from '../llm/prompts/action-surface';
 import { isBlackoutActive } from '../simulation/shocks';
 import { isPersonalityEnabled, isValidPersonality, type PersonalityTrait } from './personalities';
 
@@ -397,7 +398,8 @@ export async function buildObservation(
   let inActivePuzzle = false;
   const nearbyPuzzlePlayers: NearbyPuzzlePlayer[] = [];
 
-  if (CONFIG.puzzle.enabled && isValidUuid) {
+  // Puzzles are off by default; a world turns them on through its runtime config.
+  if (getRuntimeConfig().puzzle.enabled && isValidUuid) {
     // Check if agent is in an active puzzle
     inActivePuzzle = await isAgentInActivePuzzle(agent.id);
 
@@ -536,9 +538,42 @@ export function formatEvent(event: { type: string; tick: number; payload: Record
   let description = event.type;
   const payload = event.payload as Record<string, Record<string, unknown> | unknown>;
 
+  // Agents read what physically happened, in the action names they were offered;
+  // engine identifiers (`agent_harm`, `agent_stole`, ...) never reach them.
   switch (event.type) {
     case 'agent_undecided':
       description = 'Stayed undecided and did nothing';
+      break;
+    // Provider trouble is not part of the world: the agent only learns that it did nothing.
+    case 'agent_decision_failed':
+      description = 'A turn passed without any action';
+      break;
+    case 'agent_unresponsive':
+      description = 'Did nothing for a while';
+      break;
+    case 'agent_spoke':
+      description = typeof payload.to === 'string' ? `Spoke to Agent ${payload.to}` : 'Spoke aloud';
+      break;
+    case 'agent_heard':
+      description = `Heard Agent ${payload.speakerId} speak${payload.addressedToListener === true ? ' to you' : ''}`;
+      break;
+    case 'agent_gave':
+      description = `Handed ${payload.quantity} ${payload.itemType} to Agent ${payload.recipientId}`;
+      break;
+    case 'agent_received':
+      description = `Was handed ${payload.quantity} ${payload.itemType} by Agent ${payload.giverId}`;
+      break;
+    case 'agent_harmed':
+      description = `Struck Agent ${payload.victimId} (${payload.intensity}), dealing ${payload.damage} damage${payload.victimDied === true ? '; the blow was fatal' : ''}`;
+      break;
+    case 'agent_harm_failed':
+      description = `Tried to strike Agent ${payload.victimId} but missed`;
+      break;
+    case 'agent_stole':
+      description = `Took ${payload.quantity} ${payload.itemType} from Agent ${payload.victimId}`;
+      break;
+    case 'agent_steal_failed':
+      description = `Tried to take ${payload.targetItemType} from Agent ${payload.victimId} but was stopped`;
       break;
     case 'agent_moved': {
       const to = payload.to as { x?: number; y?: number } | undefined;
@@ -584,7 +619,7 @@ export function formatEvent(event: { type: string; tick: number; payload: Record
       break;
     }
     case 'action_failed':
-      description = `ACTION FAILED: ${event.payload.action} - ${event.payload.error}`;
+      description = `ACTION FAILED: ${surfaceActionName(String(event.payload.action))} - ${event.payload.error}`;
       break;
     // Phase 1: Emergence events
     case 'location_claimed': {
@@ -612,6 +647,11 @@ export function formatEvent(event: { type: string; tick: number; payload: Record
       description = `Consensus name for (${pos.x}, ${pos.y}) changed to "${payload.newConsensus}"`;
       break;
     }
+    default:
+      // Every decision is logged as `agent_<engine action>` before its outcome.
+      if (typeof payload.action === 'string' && event.type === `agent_${payload.action}`) {
+        description = `Chose to ${surfaceActionName(payload.action)}`;
+      }
   }
 
   return {

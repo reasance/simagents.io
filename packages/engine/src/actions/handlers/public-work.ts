@@ -139,12 +139,9 @@ export async function handlePublicWork(
     const alone = await isAgentAlone(agent.id, agent.x, agent.y);
     nearbyWorkerCount = await countNearbyWorkers(agent.id, agent.x, agent.y);
 
-    let cooperationNote = '';
-
     if (alone && runtimeConfig.cooperation.enabled) {
       // Solo penalty: reduced payment when working alone
       paymentModifier = runtimeConfig.cooperation.solo.publicWorkPaymentModifier;
-      cooperationNote = ' (solo work penalty)';
     } else if (nearbyWorkerCount > 0 && runtimeConfig.cooperation.enabled) {
       // Cooperation bonus: +20% per nearby worker, capped at +60%
       const coopBonus = Math.min(
@@ -152,7 +149,6 @@ export async function handlePublicWork(
         0.6 // cap at +60%
       );
       paymentModifier = 1.0 + coopBonus;
-      cooperationNote = ` (cooperation bonus: +${Math.round(coopBonus * 100)}% from ${nearbyWorkerCount} nearby workers)`;
     }
 
     payment = Math.floor(config.paymentPerTask * paymentModifier);

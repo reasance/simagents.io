@@ -32,9 +32,9 @@ export async function appendEvent(event: Omit<NewEvent, 'version'>): Promise<Eve
   return row;
 }
 
-export async function getEventsByAgent(agentId: string, limit = 100): Promise<Event[]> {
+export async function getEventsByAgent(agentId: string, limit = 100, excludeTypes?: ReadonlySet<string>): Promise<Event[]> {
   return store.events
-    .filter((e) => e.agentId === agentId)
+    .filter((e) => e.agentId === agentId && !excludeTypes?.has(e.eventType))
     .sort((a, b) => b.id - a.id)
     .slice(0, limit);
 }

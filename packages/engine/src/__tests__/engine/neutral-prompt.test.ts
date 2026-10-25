@@ -13,9 +13,13 @@ import { createIntent } from '../../actions';
 import { ActionExecutor } from '../../engine/executor';
 import { SimEngine } from '../../engine/engine';
 import type { ActionDecision } from '../../engine/decision';
+import { setCustomSystemPrompt } from '../../llm/prompt-manager';
+import { createPuzzleGame } from '../../engine-memory/queries/puzzles';
+import { updateAgent } from '../../engine-memory/queries/agents';
+import type { AgentObservation } from '../../llm/types';
 
-beforeEach(() => { resetStore(); resetRuntimeConfig(); });
-afterEach(() => { resetStore(); resetRuntimeConfig(); });
+beforeEach(() => { resetStore(); resetRuntimeConfig(); setCustomSystemPrompt(null); });
+afterEach(() => { resetStore(); resetRuntimeConfig(); setCustomSystemPrompt(null); });
 
 const BANNED: RegExp[] = [
   // Social framing and goals the world must not suggest (word prefixes)
@@ -54,11 +58,15 @@ test('actions are listed alphabetically and structured reputation actions are no
   for (const action of emergenceActions()) expect(system).toContain(`- ${action.name}: `);
 });
 
-test('enabling reproduction or puzzles adds their actions to the list', () => {
+test('enabling reproduction or puzzles adds their actions to the list and shows open games', async () => {
   setRuntimeConfig({ puzzle: { enabled: true }, actions: { spawnOffspring: { enabled: true } } });
   const names = emergenceActions().map((action) => action.name);
   expect(names).toContain('spawn_offspring');
   expect(names).toContain('join_puzzle');
+  const self = await createAgent({ llmType: 'fixture', x: 5, y: 5 });
+  const game = await createPuzzleGame({ gameType: 'password', solution: 'alpha', createdAtTick: 0, endsAtTick: 100, prizePool: 50, fragmentCount: 2 });
+  const observation = await buildObservation(self, 1, await getAliveAgents(), [], []);
+  expect(observation.activePuzzleGames?.map((active) => active.id)).toEqual([game.id]);
 });
 
 test('physical names map to engine actions and unoffered actions are rejected', () => {
@@ -66,6 +74,11 @@ test('physical names map to engine actions and unoffered actions are rejected', 
   expect(parseResponse('{"action":"take","params":{"targetAgentId":"b","targetItemType":"food","quantity":1}}')?.action).toBe('steal');
   expect(parseResponse('{"action":"harm","params":{"targetAgentId":"b","intensity":"light"}}')).toBeNull();
   expect(parseResponse('{"action":"deceive","params":{"targetAgentId":"b","claim":"x","claimType":"other"}}')).toBeNull();
+  // A custom prompt (or one restored from an older world) may name engine actions.
+  setCustomSystemPrompt('Choose the signal action with message "check" and intensity 1.');
+  expect(parseResponse('{"action":"signal","params":{"message":"check","intensity":1}}')?.action).toBe('signal');
+  expect(parseResponse('{"action":"harm","params":{"targetAgentId":"b","intensity":"light"}}')?.action).toBe('harm');
+  expect(parseResponse('{"action":"take","params":{"targetAgentId":"b","targetItemType":"food","quantity":1}}')?.action).toBe('steal');
 });
 
 test('private notes are parsed, bounded and survive structured output', () => {
@@ -99,6 +112,43 @@ test('notes written in one decision are stored and shown back only to their auth
   } finally {
     await engine.reset();
   }
+});
+
+test('after taking and striking, an agent reads plain physical words and its latest action', async () => {
+  let actorId = '';
+  let targetId = '';
+  let prompt = '';
+  const engine = new SimEngine({ speed: 1, onError: (error) => { throw error; }, providerFactory: (agent) => {
+    let turn = 0;
+    return { kind: 'fixture', decide: async (ctx): Promise<ActionDecision> => {
+      if (agent.id !== actorId) return { type: 'sleep', params: { duration: 10 } };
+      turn++;
+      if (turn === 1) return { type: 'steal', params: { targetAgentId: targetId, targetItemType: 'food', quantity: 1 } };
+      // Enough speech that the take falls outside the five events the prompt shows.
+      if (turn <= 4) return { type: 'speak', params: { message: `turn ${turn}`, to: targetId } };
+      if (turn === 5) return { type: 'harm', params: { targetAgentId: targetId, intensity: 'light' } };
+      prompt ||= buildFullPrompt(ctx.observation as AgentObservation);
+      return { type: 'sleep', params: { duration: 10 } };
+    } };
+  } });
+  try {
+    await engine.seed({ agentCount: 2 });
+    [actorId, targetId] = [...store.agents.keys()].sort();
+    await updateAgent(actorId, { x: 20, y: 20 });
+    await updateAgent(targetId, { x: 20, y: 21 });
+    await addToInventory(targetId, 'food', 5);
+    await engine.start();
+    for (let i = 0; i < 40 && !prompt; i++) {
+      for (let j = 0; j < 20; j++) await new Promise((resolve) => setTimeout(resolve, 0));
+      await engine.tickWall(15000);
+    }
+  } finally {
+    await engine.reset();
+  }
+  const lower = prompt.toLowerCase();
+  expect(lower).toContain('## what recently happened');
+  for (const pattern of [...BANNED, /\bstole\b/, /\btheft\b/, /\bagent_[a-z]/]) expect(lower, `prompt matches ${pattern}`).not.toMatch(pattern);
+  expect(lower.slice(lower.indexOf('## what recently happened'))).toContain('strike');
 });
 
 test('giving CITY moves currency to an adjacent agent and nothing is minted', async () => {

@@ -7,6 +7,8 @@
  * - DoS via large payloads
  */
 
+import { isRosterProvider } from '@simagents/shared';
+
 // =============================================================================
 // Constants
 // =============================================================================
@@ -19,25 +21,6 @@ export const MAX_REASONING_LENGTH = 1000;
 
 /** Maximum length for JSON payload display */
 export const MAX_PAYLOAD_VALUE_LENGTH = 200;
-
-/** Allowed LLM types for validation */
-export const VALID_LLM_TYPES = [
-  'claude',
-  'gemini',
-  'codex',
-  'deepseek',
-  'qwen',
-  'glm',
-  'grok',
-  'mistral',
-  'minimax',
-  'kimi',
-  // Local-mode baseline agents (no API key required)
-  'baseline_random',
-  'baseline_rule',
-  'baseline_sugarscape',
-  'baseline_qlearning',
-] as const;
 
 /** Allowed event types for filtering */
 export const VALID_ACTION_TYPES = [
@@ -139,10 +122,10 @@ export function isPosition(value: unknown): value is { x: number; y: number } {
 }
 
 /**
- * Validates that an LLM type is from the known list.
+ * Validates that an LLM type is a catalog provider (including decision models) or a baseline.
  */
 export function isValidLlmType(type: string): boolean {
-  return VALID_LLM_TYPES.includes(type.toLowerCase() as typeof VALID_LLM_TYPES[number]);
+  return isRosterProvider(type.toLowerCase());
 }
 
 /**

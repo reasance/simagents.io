@@ -6,7 +6,14 @@
  * analyst, see docs/metric-specification.md.
  */
 
-import type { WorldSnapshotV1 } from './persistence';
+/**
+ * What the metrics read: a world snapshot, or the live store of a running engine.
+ * Snapshots keep only the latest events, so live metrics use the store directly.
+ */
+export interface EmergenceMetricsSource {
+  savedAtSimTimeMs: number;
+  store: { agents: readonly unknown[]; events: readonly unknown[] };
+}
 
 export interface AgentEmergenceRow {
   agentId: string;
@@ -64,10 +71,10 @@ type JsonRecord = Record<string, unknown>;
 const record = (value: unknown): JsonRecord => (value && typeof value === 'object' ? value as JsonRecord : {});
 const text = (value: unknown, fallback = '') => (typeof value === 'string' ? value : fallback);
 const number = (value: unknown) => (typeof value === 'number' && Number.isFinite(value) ? value : undefined);
-const ACTION_COUNTERS: Record<string, keyof Pick<AgentEmergenceRow, 'strikes' | 'takes' | 'trades'>> = { harm: 'strikes', steal: 'takes', trade: 'trades' };
-const EDGE_COUNTERS: Record<string, keyof Pick<InteractionEdge, 'strikes' | 'takes' | 'trades'>> = { harm: 'strikes', steal: 'takes', trade: 'trades' };
+/** Counted on both the actor's row and the actor → target edge. */
+const ACT_COUNTERS: Record<string, 'strikes' | 'takes' | 'trades'> = { harm: 'strikes', steal: 'takes', trade: 'trades' };
 
-export function computeEmergenceMetrics(snapshot: WorldSnapshotV1): EmergenceMetrics {
+export function computeEmergenceMetrics(snapshot: EmergenceMetricsSource): EmergenceMetrics {
   const now = snapshot.savedAtSimTimeMs;
   const rows = new Map<string, AgentEmergenceRow & { latencyTotal: number; latencySamples: number; listeners: Set<string>; addressees: Set<string>; diedAtMs?: number }>();
   for (const raw of snapshot.store.agents) {
@@ -101,6 +108,8 @@ export function computeEmergenceMetrics(snapshot: WorldSnapshotV1): EmergenceMet
     const decided = !!action && (type === `agent_${action}` || type === 'action_failed');
     if (decided || type === 'agent_undecided') {
       if (decided) row.decisions++; else row.undecidedTurns++;
+      // Deciding again (after an explicit restart) means the agent is responsive.
+      row.unresponsive = false;
       const latency = number(payload.processingTimeMs);
       if (latency !== undefined) { row.latencyTotal += latency; row.latencySamples++; }
       const tokens = record(payload.tokens);
@@ -109,10 +118,12 @@ export function computeEmergenceMetrics(snapshot: WorldSnapshotV1): EmergenceMet
       if (typeof payload.modelId === 'string') row.modelId = payload.modelId;
       if (typeof payload.effort === 'string') row.effort = payload.effort;
       if (type === `agent_${action}`) {
-        const counter = ACTION_COUNTERS[action];
+        const counter = ACT_COUNTERS[action];
         const target = text(record(payload.params).targetAgentId);
-        if (counter) row[counter]++;
-        if (EDGE_COUNTERS[action] && target) edge(row.agentId, target)[EDGE_COUNTERS[action]]++;
+        if (counter) {
+          row[counter]++;
+          if (target) edge(row.agentId, target)[counter]++;
+        }
         if (action === 'name_location') {
           const name = text(record(payload.params).name).trim().toLowerCase();
           if (name) { proposals++; names.set(name, (names.get(name) ?? new Set()).add(row.agentId)); }
@@ -181,7 +192,7 @@ function csv(rows: object[]): string {
     const raw = value === null || value === undefined ? '' : String(value);
     // Quote, and neutralise spreadsheet formulas in model-chosen names.
     const safe = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
-    return /[",\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
+    return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
   };
   return [header.join(','), ...rows.map((row) => header.map((key) => cell((row as JsonRecord)[key])).join(','))].join('\n');
 }

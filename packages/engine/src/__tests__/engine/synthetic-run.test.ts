@@ -6,7 +6,6 @@ import { store } from '../../engine-memory/store';
 import { updateAgent } from '../../engine-memory/queries/agents';
 import { ProviderRequestError } from '../../engine/llm/provider-error';
 import { DecisionModelProvider } from '../../engine/llm/decision-model-provider';
-import { computeEmergenceMetrics } from '../../engine/emergence-metrics';
 import type { DecisionProvider } from '../../engine/decision';
 import type { Agent } from '../../db/schema';
 
@@ -51,7 +50,7 @@ test('four agents at different speeds talk, fail, choose and are measured in one
 
   expect(engine.getState().lifecycle).toBe('paused');
   const byRole = (role: string) => ids[['fast', 'slow', 'failing', 'decision'].indexOf(role)];
-  const metrics = computeEmergenceMetrics(engine.snapshot());
+  const metrics = engine.emergenceMetrics();
   const row = (role: string) => metrics.agents.find((agent) => agent.agentId === byRole(role))!;
 
   expect(row('fast')).toMatchObject({ effort: 'low', modelId: 'claude-opus-5-5' });

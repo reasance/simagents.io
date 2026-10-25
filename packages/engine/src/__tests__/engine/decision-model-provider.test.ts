@@ -18,6 +18,7 @@ async function scene() {
   await createAgent({ id: 'chooser', llmType: 'typesafe', x: 10, y: 10, balance: 20 });
   await createAgent({ id: 'neighbour', llmType: 'claude', x: 10, y: 11 });
   await addToInventory('chooser', 'food', 2);
+  await addToInventory('chooser', 'material', 1);
   await addToInventory('neighbour', 'material', 1);
   const agents = await getAliveAgents();
   const agent = agents.find((candidate) => candidate.id === 'chooser')!;
@@ -34,6 +35,8 @@ test('options are concrete physical actions with unique keys and never include s
   expect(new Set(keys).size).toBe(keys.length);
   for (const key of ['rest', 'move_north', 'move_south', 'move_east', 'move_west', 'forage', 'consume_food', 'give_food_to_a1', 'give_city_to_a1', 'strike_a1', 'take_material_from_a1']) expect(keys).toContain(key);
   expect(options.some((option) => option.type === 'speak')).toBe(false);
+  // Material has no consume effect, so consuming it is not an option.
+  expect(keys).not.toContain('consume_material');
   expect(options.find((option) => option.key === 'give_food_to_a1')!.params).toEqual({ targetAgentId: 'neighbour', itemType: 'food', quantity: 1 });
 });
 

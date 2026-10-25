@@ -40,12 +40,12 @@ export async function handleHarm(
 
   // Validate intensity
   if (!['light', 'moderate', 'severe'].includes(intensity)) {
-    return { success: false, error: 'Invalid harm intensity. Must be light, moderate, or severe.' };
+    return { success: false, error: 'Invalid intensity. Must be light, moderate, or severe.' };
   }
 
   // Cannot harm self
   if (targetAgentId === agent.id) {
-    return { success: false, error: 'Cannot harm yourself' };
+    return { success: false, error: 'Cannot strike yourself' };
   }
 
   // Get target agent
@@ -265,7 +265,7 @@ export async function handleHarm(
     return {
       success: false,
       changes: { energy: newAttackerEnergy, hunger: newAttackerHunger },
-      error: 'Attack failed',
+      error: 'The blow missed',
       events: [
         {
           id: uuid(),

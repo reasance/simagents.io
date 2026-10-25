@@ -8,6 +8,7 @@ import type { ActionType } from '../actions/types';
 import { randomChoice } from '../utils/random';
 import { getRuntimeConfig, isEmergentPromptEnabled } from '../config';
 import { resolveSurfaceAction } from './prompts/action-surface';
+import { hasCustomPrompt } from './prompt-manager';
 
 const VALID_ACTIONS: ActionType[] = [
   // Core survival actions
@@ -55,11 +56,14 @@ export function parseResponse(response: string): AgentDecision | null {
 
     const parsed = JSON.parse(jsonMatch[0]);
 
-    // Validate action. Emergent prompts offer a curated surface with physical aliases.
+    // Validate the action in the vocabulary of the prompt the agent read: the built-in
+    // emergent prompt offers a curated surface with physical aliases, while a custom
+    // prompt (including one restored from an older world) may name engine actions.
     const name = typeof parsed.action === 'string' ? parsed.action : '';
-    const action = isEmergentPromptEnabled()
-      ? resolveSurfaceAction(name)
-      : VALID_ACTIONS.includes(name as ActionType) ? name as ActionType : undefined;
+    const engineAction = VALID_ACTIONS.includes(name as ActionType) ? name as ActionType : undefined;
+    const action = !isEmergentPromptEnabled() ? engineAction
+      : hasCustomPrompt() ? resolveSurfaceAction(name) ?? engineAction
+      : resolveSurfaceAction(name);
     if (!action) {
       return null;
     }

@@ -43,7 +43,6 @@ export async function handleBuy(
 
   // Trust-based pricing: social agents get discounts, antisocial get penalties
   let trustMultiplier = 1.0;
-  let trustNote = '';
   const buyConfig = runtimeConfig.cooperation.buy;
 
   if (runtimeConfig.cooperation.enabled && buyConfig) {
@@ -58,12 +57,6 @@ export async function handleBuy(
       const minDiscount = buyConfig.minTrustDiscount ?? -0.1;
       const maxPenalty = buyConfig.maxTrustPenalty ?? 0.1;
       trustMultiplier = Math.max(1 + minDiscount, Math.min(1 + maxPenalty, trustMultiplier));
-
-      if (avgTrust > 20) {
-        trustNote = ` (trusted customer: ${Math.round((1 - trustMultiplier) * 100)}% discount)`;
-      } else if (avgTrust < -20) {
-        trustNote = ` (untrusted: ${Math.round((trustMultiplier - 1) * 100)}% markup)`;
-      }
     }
   }
 

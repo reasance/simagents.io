@@ -1,24 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useLocale, translate } from '../../../i18n';
 import { getEngineClient } from '../../../engine-host/engine-client';
-import { computeEmergenceMetrics, emergenceAgentsCsv, emergenceEdgesCsv, type EmergenceMetrics } from '@simagents/engine/engine/emergence-metrics';
+import { downloadText } from '../../../services/persistence';
+import { useAnalyticsStore } from '../../../stores/analytics';
+import { emergenceAgentsCsv, emergenceEdgesCsv, type EmergenceMetrics } from '@simagents/engine/engine/emergence-metrics';
 import { MetricCard } from '../MetricCard';
 
 /**
  * RelationsPanel - observer-only metrics of what agents said and did to each
- * other, computed from the event log. Agents never see these figures.
+ * other, computed by the worker from the live event log. Agents never see these figures.
  */
-
-function download(filename: string, content: string, type: string): void {
-  const url = URL.createObjectURL(new Blob([content], { type }));
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
-}
 
 const ratio = (value: number | null) => (value === null ? '—' : `${Math.round(value * 100)}%`);
 
@@ -26,16 +17,16 @@ export function RelationsPanel() {
   useLocale();
   const [metrics, setMetrics] = useState<EmergenceMetrics | null>(null);
   const [failed, setFailed] = useState(false);
+  // Refresh with the rest of the dashboard: its 30-second timer and its Refresh button.
+  const refreshedAt = useAnalyticsStore((state) => state.lastUpdated);
 
   useEffect(() => {
     let cancelled = false;
-    const load = () => getEngineClient().exportWorld()
-      .then((file) => { if (!cancelled) { setMetrics(computeEmergenceMetrics(file.snapshot)); setFailed(false); } })
+    getEngineClient().getEmergenceMetrics()
+      .then((next) => { if (!cancelled) { setMetrics(next); setFailed(false); } })
       .catch(() => { if (!cancelled) setFailed(true); });
-    void load();
-    const interval = setInterval(load, 30000);
-    return () => { cancelled = true; clearInterval(interval); };
-  }, []);
+    return () => { cancelled = true; };
+  }, [refreshedAt]);
 
   if (!metrics) {
     return (
@@ -95,11 +86,11 @@ export function RelationsPanel() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={() => download(`simagents-agents-${stamp}.csv`, emergenceAgentsCsv(metrics), 'text/csv')}
+        <button type="button" onClick={() => downloadText(`simagents-agents-${stamp}.csv`, emergenceAgentsCsv(metrics), 'text/csv')}
           className="px-2 py-1 text-xs rounded bg-city-surface-alt border border-city-border hover:bg-city-surface-hover">{translate('Export agents CSV')}</button>
-        <button type="button" onClick={() => download(`simagents-interactions-${stamp}.csv`, emergenceEdgesCsv(metrics), 'text/csv')}
+        <button type="button" onClick={() => downloadText(`simagents-interactions-${stamp}.csv`, emergenceEdgesCsv(metrics), 'text/csv')}
           className="px-2 py-1 text-xs rounded bg-city-surface-alt border border-city-border hover:bg-city-surface-hover">{translate('Export interactions CSV')}</button>
-        <button type="button" onClick={() => download(`simagents-relations-${stamp}.json`, JSON.stringify(metrics, null, 2), 'application/json')}
+        <button type="button" onClick={() => downloadText(`simagents-relations-${stamp}.json`, JSON.stringify(metrics, null, 2), 'application/json')}
           className="px-2 py-1 text-xs rounded bg-city-surface-alt border border-city-border hover:bg-city-surface-hover">{translate('Export JSON')}</button>
       </div>
     </div>

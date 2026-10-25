@@ -58,6 +58,11 @@ function decisionFailureCode(error: unknown): DecisionFailureCode | undefined {
 const TERMINAL_FAILURES: ReadonlySet<DecisionFailureCode> = new Set(['credentials', 'quota']);
 /** Failures worth waiting out before the next attempt. */
 const BACKOFF_FAILURES: ReadonlySet<DecisionFailureCode> = new Set(['rate-limit', 'unavailable', 'network']);
+/**
+ * Per-heartbeat bookkeeping (vitals, spoilage, regeneration): the body and inventory
+ * descriptions already carry it, and one event per heartbeat would crowd out real events.
+ */
+const UNPERCEIVED_EVENTS: ReadonlySet<string> = new Set(['needs_updated', 'items_spoiled', 'health_regenerated']);
 
 export class AgentRunner {
   readonly agentId: string;
@@ -220,7 +225,7 @@ export class AgentRunner {
       getAliveAgents(),
       getAllResourceSpawns(),
       getAllShelters(),
-      getEventsByAgent(agent.id, 10),
+      getEventsByAgent(agent.id, 10, UNPERCEIVED_EVENTS),
     ]);
 
     return buildObservation(

@@ -7,6 +7,7 @@ import type { AgentRosterEntry, LLMType } from '@simagents/shared';
 import type { DecisionInput } from '@simagents/engine/engine/decision';
 import type { SimEngineState } from '@simagents/engine/engine/engine';
 import type { WorldSnapshotV1 } from '@simagents/engine/engine/persistence';
+import type { EmergenceMetrics } from '@simagents/engine/engine/emergence-metrics';
 import {
   exportExperimentRun,
   loadExperimentRuns,
@@ -53,6 +54,7 @@ export type WorkerCommand =
   | { cmd: 'getState' }
   | { cmd: 'snapshot' }
   | { cmd: 'export' }
+  | { cmd: 'emergenceMetrics' }
   | { cmd: 'setRuntimeConfig'; updates: Record<string, unknown> }
   | { cmd: 'setCustomPrompt'; prompt: string | null }
   | { cmd: 'getReplayRange'; requestId: string }
@@ -225,6 +227,11 @@ export class EngineClient {
 
   exportWorld(): Promise<EngineExportPayload> {
     return this.request(() => ({ cmd: 'export' }));
+  }
+
+  /** Relational metrics computed in the worker over the live event log, without exporting the world. */
+  getEmergenceMetrics(): Promise<EmergenceMetrics> {
+    return this.request(() => ({ cmd: 'emergenceMetrics' }));
   }
 
   async getReplayRange(): Promise<TickRange> {

@@ -4,6 +4,7 @@ import { getRuntimeConfig } from '../config';
 import { subscribe, type WorldEvent } from '../engine-memory/bus';
 import { seedWorld, type SeedOptions } from '../engine-memory/seed';
 import { store, resetStore } from '../engine-memory/store';
+import { computeEmergenceMetrics, type EmergenceMetrics } from './emergence-metrics';
 import { getAliveAgents } from '../engine-memory/queries/agents';
 import { SimClock, DEFAULT_SIM_SPEED } from './time';
 import { runHousekeeping } from './heartbeat';
@@ -264,6 +265,14 @@ export class SimEngine implements AgentRunnerHost {
       savedAtSimTimeMs: this.clock.simTimeMs,
       worldSeed: this.worldSeed,
       speed: this.clock.speed,
+    });
+  }
+
+  /** Observer metrics over the whole in-memory event log; a snapshot keeps only its latest events. */
+  emergenceMetrics(): EmergenceMetrics {
+    return computeEmergenceMetrics({
+      savedAtSimTimeMs: this.clock.simTimeMs,
+      store: { agents: [...store.agents.values()], events: store.events },
     });
   }
 

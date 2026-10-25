@@ -1,13 +1,14 @@
 #!/usr/bin/env bun
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-import { LLM_CATALOG } from '../packages/shared/src/llm-catalog.ts';
-import { validateConnectionProfile, ModelCapabilitiesSchema } from '../packages/shared/src/connections.ts';
+import { validateConnectionProfile, ModelCapabilitiesSchema, PROVIDER_DEFINITIONS, isDecisionProtocol } from '../packages/shared/src/connections.ts';
 const manifest = JSON.parse(await readFile('docs/provider-verification-manifest.json', 'utf8'));
 const fail = message => { throw new Error(`Provider manifest: ${message}`); };
 if (manifest.schemaVersion !== 1 || manifest.status !== 'draft-not-authorized' || manifest.approval !== null || manifest.budget.authorizedMaximum !== null) fail('this checker covers the unexecuted draft only; it cannot authorize traffic');
 const providers = new Set(manifest.combinations.map(row => row.providerId));
-if (LLM_CATALOG.length !== 11 || [...providers].sort().join(',') !== LLM_CATALOG.map(row => row.id).sort().join(',')) fail('minimum provider inventory is incomplete');
+// Decision models (Jev, Sage) are not carried by the official relay this campaign exercises.
+const textProviders = PROVIDER_DEFINITIONS.filter(row => !isDecisionProtocol(row.protocol)).map(row => row.id).sort();
+if (textProviders.length !== 11 || [...providers].sort().join(',') !== textProviders.join(',')) fail('minimum provider inventory is incomplete');
 if (manifest.combinations.length !== 12 || manifest.combinations.filter(row => row.providerId === 'codex').map(row => row.protocol).sort().join(',') !== 'chat-completions,openai-responses') fail('both OpenAI protocols are required');
 const ids = new Set(), calls = new Set();
 for (const row of manifest.combinations) {

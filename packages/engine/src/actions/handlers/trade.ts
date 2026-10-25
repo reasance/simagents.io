@@ -106,9 +106,6 @@ export async function handleTrade(
 
   // Phase 6: Calculate actual received quantity with trust/loyalty bonus
   const bonusQuantityReceived = Math.floor(requestingQuantity * quantityBonusMultiplier);
-  const bonusNote = quantityBonusMultiplier > 1
-    ? ` (BONUS: +${Math.round((quantityBonusMultiplier - 1) * 100)}% from trust/loyalty)`
-    : '';
 
   const tradeResult = await swapInventoryForTrade(
     agent.id,

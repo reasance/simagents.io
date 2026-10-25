@@ -1,4 +1,4 @@
-import { beforeEach, expect, test } from 'bun:test';
+import { afterEach, beforeEach, expect, test } from 'bun:test';
 import { resetRuntimeConfig } from '../../config';
 import { createAgent } from '../../engine-memory/queries/agents';
 import { appendEvent } from '../../engine-memory/queries/events';
@@ -8,8 +8,12 @@ import { createIntent } from '../../actions';
 import { ActionExecutor } from '../../engine/executor';
 import { serializeWorld } from '../../engine/persistence';
 import { computeEmergenceMetrics, emergenceAgentsCsv, emergenceEdgesCsv } from '../../engine/emergence-metrics';
+import { SimEngine } from '../../engine/engine';
+import { store } from '../../engine-memory/store';
+import { updateAgent } from '../../engine-memory/queries/agents';
 
 beforeEach(() => { resetStore(); resetRuntimeConfig(); });
+afterEach(() => { resetStore(); resetRuntimeConfig(); });
 
 test('relational metrics count speech, replies, gifts, force and shared names from the event log', async () => {
   await createAgent({ id: 'ana', name: 'Agent 1', llmType: 'claude', x: 5, y: 5 });
@@ -51,4 +55,29 @@ test('undecided turns are counted apart from decisions but their latency and tok
 
   const sage = computeEmergenceMetrics(serializeWorld({ worldSeed: 'metrics', savedAtSimTimeMs: 60 * 60000, speed: 1 })).agents[0];
   expect(sage).toMatchObject({ decisions: 1, undecidedTurns: 1, failedTurns: 0, meanDecisionMs: 300, inputTokens: 90, modelId: 'levanto-sage-v1.3' });
+});
+
+test('an agent that decides again after being left unresponsive is no longer reported unresponsive', async () => {
+  await createAgent({ id: 'retry', name: 'Agent 1', llmType: 'claude', x: 5, y: 5 });
+  await appendEvent({ tick: 1, agentId: 'retry', eventType: 'agent_unresponsive', payload: { code: 'rate-limit' } });
+  const before = computeEmergenceMetrics(serializeWorld({ worldSeed: 'metrics', savedAtSimTimeMs: 60000, speed: 1 })).agents[0];
+  expect(before.unresponsive).toBe(true);
+  await new ActionExecutor({ nowMs: () => 60000 }).submit(createIntent('retry', 'sleep', { duration: 1 }, 1), { processingTimeMs: 200 });
+  const after = computeEmergenceMetrics(serializeWorld({ worldSeed: 'metrics', savedAtSimTimeMs: 120000, speed: 1 })).agents[0];
+  expect(after).toMatchObject({ unresponsive: false, decisions: 1 });
+});
+
+test('a running world is measured over its live event log, not the latest events a snapshot keeps', async () => {
+  const engine = new SimEngine({ speed: 1 });
+  try {
+    await engine.seed({ agentCount: 2 });
+    const [speaker, listener] = [...store.agents.keys()].sort();
+    await updateAgent(speaker, { x: 10, y: 10 });
+    await updateAgent(listener, { x: 10, y: 11 });
+    for (let i = 0; i < 300; i++) await engine.getExecutor().submit(createIntent(speaker, 'speak', { message: `Anyone there? ${i}`, to: listener }, 0));
+    const row = engine.emergenceMetrics().agents.find((agent) => agent.agentId === speaker)!;
+    expect(row).toMatchObject({ utterances: 300, questions: 300, decisions: 300 });
+  } finally {
+    await engine.reset();
+  }
 });

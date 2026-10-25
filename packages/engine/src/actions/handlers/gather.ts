@@ -126,13 +126,11 @@ export async function handleGather(
   const otherAgentsHere = await countAgentsAtPosition(agent.id, agent.x, agent.y);
   const isRichSpawn = targetSpawn.currentAmount > groupGatherConfig.richSpawnThreshold;
   let maxGatherLimit = quantity;
-  let groupGatherNote = '';
 
   if (groupGatherConfig.enabled && isRichSpawn) {
     if (otherAgentsHere + 1 < groupGatherConfig.minAgentsForRich) {
       // Solo agent at rich spawn - limited gathering
       maxGatherLimit = Math.min(quantity, groupGatherConfig.soloMaxFromRich);
-      groupGatherNote = ` (RICH SPAWN: need ${groupGatherConfig.minAgentsForRich}+ agents to fully harvest, solo max: ${groupGatherConfig.soloMaxFromRich})`;
     }
   }
 
@@ -153,7 +151,6 @@ export async function handleGather(
   // Phase 5: Group bonus for rich spawns when cooperating
   if (groupGatherConfig.enabled && isRichSpawn && otherAgentsHere + 1 >= groupGatherConfig.minAgentsForRich) {
     efficiencyMultiplier *= groupGatherConfig.groupBonus;
-    groupGatherNote = ` (GROUP BONUS: +${Math.round((groupGatherConfig.groupBonus - 1) * 100)}% efficiency with ${otherAgentsHere + 1} agents!)`;
   }
 
   // Solo penalty: if no other agents nearby, reduce efficiency
@@ -175,15 +172,7 @@ export async function handleGather(
   const newEnergy = agent.energy - actualEnergyCost;
   const newHunger = Math.max(0, agent.hunger - actualHungerCost);
 
-  // Store memory of gathering (include cooperation bonus/penalty info if applicable)
-  let coopNote = groupGatherNote; // Start with group gather note if set
-  if (!coopNote) {
-    if (finalGathered > actualGathered) {
-      coopNote = ` (cooperation bonus: +${finalGathered - actualGathered})`;
-    } else if (finalGathered < actualGathered) {
-      coopNote = ` (solo penalty: -${actualGathered - finalGathered})`;
-    }
-  }
+  // Store memory of gathering (amounts only; cooperation bonuses stay hidden from agents)
   await storeMemory({
     agentId: agent.id,
     type: 'action',

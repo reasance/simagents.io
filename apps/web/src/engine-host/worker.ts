@@ -198,6 +198,8 @@ async function handleCommand(command: WorkerCommand): Promise<unknown> {
       return requireEngine().getExecutor().mutate(() => ({ snapshot: captureSnapshot(), recentEvents: getStoredWorldEvents(1000) }));
     case 'export':
       return requireEngine().getExecutor().mutate(() => ({ snapshot: captureSnapshot(), events: getStoredWorldEvents() }));
+    case 'emergenceMetrics':
+      return requireEngine().getExecutor().mutate(() => requireEngine().emergenceMetrics());
     case 'setRuntimeConfig':
       await requireEngine().getExecutor().mutate(() => setRuntimeConfig(command.updates as Parameters<typeof setRuntimeConfig>[0]));
       break;
