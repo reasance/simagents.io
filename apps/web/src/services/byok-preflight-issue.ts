@@ -6,6 +6,18 @@ import { getProviderCatalogEntry, isLLMProviderId, type AgentRosterEntry, type L
 export function internalFixturesEnabled(): boolean {
   return import.meta.env?.DEV === true && import.meta.env?.VITE_INTERNAL_TESTS === 'true';
 }
+/** A dry run needs only participants with a model: no keys, connections or verification. */
+export function dryRunPreflightIssue(roster: AgentRosterEntry[], internal = false): AppIssue | undefined {
+  if (!roster.length) return { code: 'BYOK_AGENT_REQUIRED' };
+  for (const entry of roster) {
+    if (!isLLMProviderId(entry.provider)) {
+      if (internal) continue;
+      return { code: 'BYOK_INTERNAL', parameters: { agent: entry.name } };
+    }
+    if (!entry.modelId.trim()) return { code: 'BYOK_MODEL', parameters: { agent: entry.name } };
+  }
+  return undefined;
+}
 export function byokPreflightIssue(roster: AgentRosterEntry[], keys: Partial<Record<string, string>>, proxyUrl: string, internal = false, connections: ConnectionProfile[] = []): AppIssue | undefined {
   if (!roster.length) return { code: 'BYOK_AGENT_REQUIRED' };
   for (const entry of roster) {

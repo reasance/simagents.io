@@ -345,6 +345,8 @@ jobs:
               node scripts/connection-profile-smoke.mjs
               node scripts/setup-smoke.mjs
               SIMAGENTS_SMOKE_WIDTH=390 node scripts/setup-smoke.mjs
+              node scripts/dry-run-smoke.mjs
+              SIMAGENTS_SMOKE_WIDTH=390 node scripts/dry-run-smoke.mjs
             done
           done
 
@@ -402,6 +404,7 @@ jobs:
             .tmp/cloudflare-runtime-evidence
             .tmp/keyboard
             .tmp/setup
+            .tmp/dry-run
             .tmp/header
             .tmp/accessibility
             ${{ runner.temp }}/simagents-*.log

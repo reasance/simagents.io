@@ -3,7 +3,8 @@ import { AppError, errorIssue, type AppIssue } from '@simagents/shared';
 import { profileVerificationProblem } from '../services/profile-verification-gate';
 import { useConnectionsStore } from '../stores/connections';
 import { useSessionLimitsStore } from '../stores/sessionLimits';
-import { byokPreflightIssue, internalFixturesEnabled } from '../services/byok-preflight-issue';
+import { byokPreflightIssue, dryRunPreflightIssue, internalFixturesEnabled } from '../services/byok-preflight-issue';
+import { useDryRunStore } from '../stores/dryRun';
 import { getEngineClient } from '../engine-host/engine-client';
 import { engineStateToWorldState } from './useEngine';
 import { clearSavedWorld, loadSavedWorld } from '../services/persistence';
@@ -112,12 +113,17 @@ export function useWorldControl() {
 
   const start = async (options: StartOptions = {}): Promise<StartResult> => {
     try {
-      const roster = useRosterStore.getState().roster;
-      const keys = useApiKeysStore.getState().getActiveKeys();
-      const proxyUrl = useSettingsStore.getState().proxyUrl.trim();
-      const connectionIssue = byokPreflightIssue(roster, keys, proxyUrl, internalFixturesEnabled(), useConnectionsStore.getState().profiles);
+      const dryRun = useDryRunStore.getState().enabled;
+      // A dry run sends the worker no keys, no endpoints and no connection references.
+      const roster = dryRun
+        ? useRosterStore.getState().roster.map(({ connectionId: _connection, ...entry }) => entry)
+        : useRosterStore.getState().roster;
+      const keys = dryRun ? {} : useApiKeysStore.getState().getActiveKeys();
+      const proxyUrl = dryRun ? '' : useSettingsStore.getState().proxyUrl.trim();
+      const connections = dryRun ? [] : useConnectionsStore.getState().profiles;
+      const connectionIssue = dryRun ? dryRunPreflightIssue(roster, internalFixturesEnabled()) : byokPreflightIssue(roster, keys, proxyUrl, internalFixturesEnabled(), connections);
       if (connectionIssue) throw new AppError(connectionIssue);
-      const verificationIssue = profileVerificationProblem(roster, useConnectionsStore.getState().profiles);
+      const verificationIssue = dryRun ? undefined : profileVerificationProblem(roster, connections);
       if (verificationIssue) throw new AppError(verificationIssue);
       useAgentStatsStore.getState().resetAgentStats();
       const pendingChanges = useConfigStore.getState().pendingChanges as Record<string, unknown>;
@@ -127,8 +133,9 @@ export function useWorldControl() {
 
       const state = await client.init({
         captureRequests: useRequestCaptureStore.getState().enabled,
+        dryRun,
         roster,
-        connections: useConnectionsStore.getState().profiles,
+        connections,
         limits: useSessionLimitsStore.getState().limits,
         keys,
         proxyUrl: proxyUrl || undefined,
@@ -139,6 +146,7 @@ export function useWorldControl() {
         resume: saved?.snapshot,
       });
       useRequestCaptureStore.getState().setEnabled(false);
+      useDryRunStore.getState().setSession(dryRun);
       await client.start();
       const mapped = engineStateToWorldState(state);
       return {
@@ -166,6 +174,7 @@ export function useWorldControl() {
 
   const reset = async (): Promise<boolean> => {
     getEngineClient().resetHard();
+    useDryRunStore.getState().setSession(false);
     useAgentStatsStore.getState().resetAgentStats();
     await clearSavedWorld();
     await clearReplayFrames();

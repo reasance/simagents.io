@@ -48,6 +48,7 @@ All local persistence must be bounded and validated on read.
 | `simagents_credential_vault_v1` | Optional AES-GCM credential archive |
 | `simagents_api_keys` | Legacy plaintext; explicit migration only, never automatically loaded |
 | `simagents_session_limits_v1` | Request/time/token limits (no secrets) |
+| `simagents_dry_run_v1` | Dry run (scripted local replies) chosen for the next session |
 | `simagents_agent_roster` | Stable roster IDs, model/capabilities and connection references |
 | `simagents_connections_v1` | Connection metadata and credential references; no keys |
 | `simagents_proxy_url` | Optional user-provided proxy origin |

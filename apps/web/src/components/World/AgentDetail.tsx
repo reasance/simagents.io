@@ -1,5 +1,6 @@
 import { translate, translateLabel, formatActionLabel, useLocale } from '../../i18n';
 import { estimateRecordedCost } from '../../services/token-cost';
+import { DRY_RUN_MODEL_PREFIX } from '@simagents/engine/engine/llm/dry-run-provider';
 import { actionsPerSimMinute, useAgentStats } from '../../stores/agentStats';
 import { useAgent, useAgentDecisions, useWorldStore, type WorldEvent } from '../../stores/world';
 import { useAgentRoster } from '../../stores/roster';
@@ -35,6 +36,7 @@ export function AgentDetail({ agentId, onBack }: { agentId: string; onBack?: () 
   const entry = rosterEntryFor(agent, roster);
   const cost = estimateRecordedCost(stats);
   const reportedModel = stats?.lastModelId;
+  const dryRun = !!reportedModel?.startsWith(DRY_RUN_MODEL_PREFIX);
   const back = onBack ?? (() => select(null));
 
   return <div className="grid gap-5 p-4 pt-2">
@@ -74,11 +76,15 @@ export function AgentDetail({ agentId, onBack }: { agentId: string; onBack?: () 
       <div className="stat-grid">
         <div className="stat"><span className="engraved">{translate('Avg latency')}</span><span className="stat-value text-base">{stats?.latencySamples ? `${Math.round(stats.avgLatencyMs)} ms` : '—'}</span></div>
         <div className="stat"><span className="engraved" title={translate('Attempts per simulated minute since the first recorded action; minimum window one minute.')}>{translate('Attempts/min')}</span><span className="stat-value text-base">{actionsPerSimMinute(stats).toFixed(2)}</span></div>
-        <div className="stat"><span className="engraved">{translate('Known reported tokens')}</span><span className="stat-value text-base">{stats && stats.totalTokens > 0 ? stats.totalTokens : '—'}</span></div>
+        <div className="stat"><span className="engraved">{translate(dryRun ? 'Estimated tokens' : 'Known reported tokens')}</span><span className="stat-value text-base">{stats && stats.totalTokens > 0 ? stats.totalTokens : '—'}</span></div>
         <div className="stat"><span className="engraved">{translate('Listed-rate estimate')}</span><span className="stat-value text-base">{cost.available ? new Intl.NumberFormat(locale, { style: 'currency', currency: cost.currency, maximumFractionDigits: 4 }).format(cost.amount) : '—'}</span></div>
       </div>
-      {reportedModel && <p className="hint m-0">{translate('Model reported by the provider')}: <span className="figure">{reportedModel}</span></p>}
-      <p className="hint m-0">{translate('Recorded decisions only. Probes, failed or cancelled requests and unreported usage may still be billed. This estimate is not a provider invoice or spending guarantee.')}</p>
+      {dryRun
+        ? <p className="hint m-0">{translate('Scripted replies in this tab (dry run); no model was called. Tokens are estimated from the prompt length.')}</p>
+        : <>
+          {reportedModel && <p className="hint m-0">{translate('Model reported by the provider')}: <span className="figure">{reportedModel}</span></p>}
+          <p className="hint m-0">{translate('Recorded decisions only. Probes, failed or cancelled requests and unreported usage may still be billed. This estimate is not a provider invoice or spending guarantee.')}</p>
+        </>}
     </section>
   </div>;
 }

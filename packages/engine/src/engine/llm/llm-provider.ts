@@ -12,7 +12,7 @@ import { extractProviderResponse } from './response-extractor';
 
 const DEFAULT_MAX_TOKENS = 1024;
 const DEFAULT_TEMPERATURE = 0.7;
-const DECISION_SYSTEM_PROMPT =
+export const DECISION_SYSTEM_PROMPT =
   'You are choosing one simulation action. Return only the JSON object requested by the simulation prompt.';
 
 export interface LLMDecisionProviderConfig {

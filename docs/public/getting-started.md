@@ -29,6 +29,10 @@ Click **Set up a simulation** (or **Start**). Setup has three steps:
 2. **Participants.** Each participant is a provider, a model and an effort level. Use **Duplicate** to add the same model again at another effort. Verify each participant (one potentially billable request); changing the model or effort needs a new check.
 3. **Limits and start.** Set the request, duration and token limits, choose whether to resume a saved world, and start.
 
+## Try It Without Keys
+
+Click **Try a dry run** on the first screen, or choose **Dry run** in the first setup step. Participants still have a provider, a model and an effort, but no model is called: each one answers with a scripted local reply after a delay that grows with its effort. No key is needed, nothing is sent and nothing is billed. A first dry run with a single participant gets three more so they have someone to meet. The top bar shows **Dry run** while it runs, the saved world is marked as one, and it resumes only as a dry run. Use it to try the interface; it says nothing about how models behave.
+
 The system prompt and the world's starting values live in **Menu → Advanced settings**. Baseline agents are available only in development builds with `VITE_INTERNAL_TESTS=true`.
 
 Browser-local data is stored under versioned or bounded keys:
@@ -43,6 +47,7 @@ Browser-local data is stored under versioned or bounded keys:
 | `simagents_event_ring` | Recent event ring |
 | `simagents_replay_frames_v1` | Local replay frames |
 | `simagents_prompt_logs_v1` | Local prompt inspector logs |
+| `simagents_dry_run_v1` | Dry run chosen for the next session |
 | `simagents_experiment_defs_v1` | Browser experiment definitions |
 | `simagents_experiment_runs_v1` | Browser experiment summaries |
 

@@ -52,6 +52,7 @@ export const ERROR_TEXT = {
   BYOK_PROVIDER_KEY: '{agent}: enter or unlock the {provider} API key.',
   BYOK_RELAY_URL: '{agent}: configure an HTTPS relay URL without credentials, query or fragment.',
   MODEL_VERIFY_REQUIRED: '{agent}: verify the selected connection and model before starting.',
+  DRY_RUN_MISMATCH: 'This saved world was started in the other mode. Switch modes to resume it, or start a new world.',
 } as const satisfies Record<AppErrorCode, string>;
 export function formatIssue(issue: AppIssue): string { return translate(ERROR_TEXT[issue.code] as TranslationKey, issue.parameters); }
 export function formatError(error: unknown): string { return formatIssue(errorIssue(error)); }

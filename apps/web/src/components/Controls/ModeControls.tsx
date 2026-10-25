@@ -5,6 +5,7 @@ import { useAppMode, useIsPaused } from '../../stores/editor';
 import { translate, useLocale } from '../../i18n';
 import { errorIssue, type AppIssue } from '@simagents/shared';
 import { formatIssue } from '../../i18n/errors';
+import { useDryRunStore } from '../../stores/dryRun';
 
 interface ModeControlsProps {
   stoppedByError?: boolean;
@@ -21,6 +22,7 @@ export function ModeControls({ onSetup, onPause, onResume, stoppedByError, mutat
   const relayConfig = admissionConfig();
   const relayBlocked = !!relayConfig && getEngineClient().usesRelay(relayConfig.relayUrl) && !relaySession.getToken();
   const mode = useAppMode(), paused = useIsPaused();
+  const dryRun = useDryRunStore(s => mode === 'editor' ? s.enabled : s.session);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<AppIssue>();
   const ready = mode === 'editor';
@@ -33,6 +35,7 @@ export function ModeControls({ onSetup, onPause, onResume, stoppedByError, mutat
   };
   return <div className="session-controls" role="group" aria-label={translate('Simulation controls')}>
     <span className="session-state" data-state={state}><span className="dot" aria-hidden="true" /><span>{translate(state === 'ready' ? 'Ready' : state === 'error' ? 'Error' : state === 'paused' ? 'Paused' : 'Running')}</span></span>
+    {dryRun && <span className="badge badge-brass" title={translate('Scripted replies in this tab: no keys, no requests, no cost')}>{translate('Dry run')}</span>}
     {stoppedByError && !ready && <button type="button" className="btn btn-small hidden sm:inline-flex" disabled={loading || mutationPending} onClick={onSetup}>{translate('New session')}</button>}
     <button className={ready || paused ? 'btn btn-primary' : 'btn'} type="button"
       disabled={loading || (paused && !ready && relayBlocked) || (ready && mutationPending)}

@@ -31,6 +31,8 @@ Rules:
 
 The design is "Observatory": dark, map-centred, one brass accent for what is active, selected or spoken. Colours and type are tokens in `apps/web/src/index.css` (`night`, `panel`, `raised`, `rule`, `mist`, `star`, `brass`, `ok`, `alert`; IBM Plex Sans/Mono and Barlow Condensed, self-hosted). Component classes live in `@layer components` so Tailwind utilities can override them. Targets are at least 44 px, everything works by keyboard, and the browser smokes audit WCAG 2.2 AA at 1440, 768 and 390 px.
 
+**Dry run** (`engine/llm/dry-run-provider.ts`) replaces every model participant with scripted local replies: the real prompt is built, the reply waits a wall-clock delay that grows with effort, and nothing is sent or billed. The worker receives no keys or connections, the saved world carries `configuration.dryRun`, and a world resumes only in the mode it was started in. It exists to exercise the interface; never present its worlds as model results.
+
 ## Architecture
 
 ```text
@@ -86,6 +88,7 @@ SIMAGENTS_SMOKE_URL=http://localhost:5173/ node scripts/browser-smoke.mjs
 - `simagents_prompt_logs_v1`
 - `simagents_experiment_defs_v1`
 - `simagents_experiment_runs_v1`
+- `simagents_dry_run_v1` (dry run chosen for the next session)
 
 All new keys must be versioned, validated on read, bounded by byte/count budget, and clearable/exportable where user data could become large.
 

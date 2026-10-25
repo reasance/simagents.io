@@ -13,6 +13,7 @@ import { useProxyUrl } from '../../stores/settings';
 import { verifyConnection, verificationSignature } from '../../services/connection-verification';
 import { listConnectionModels } from '../../services/connection-models';
 import { internalFixturesEnabled } from '../../services/byok-preflight';
+import { useDryRunStore } from '../../stores/dryRun';
 import { ReasoningControl } from './ReasoningControl';
 
 /** Muted, distinguishable on the night background; none collides with the brass accent. */
@@ -41,6 +42,7 @@ export function ParticipantCard({ entry, canRemove, onUpdate, onDuplicate, onRem
   const relayUrl = useProxyUrl();
   const maxTokens = useSessionLimitsStore(s => s.limits.maxOutputTokens);
   const receipts = useConnectionVerificationStore();
+  const dryRun = useDryRunStore(s => s.enabled);
   const [busy, setBusy] = useState(false);
   const [models, setModels] = useState<string[]>([]);
   const [listingError, setListingError] = useState<AppIssue>();
@@ -49,7 +51,10 @@ export function ParticipantCard({ entry, canRemove, onUpdate, onDuplicate, onRem
   const llm = isLLMProviderId(entry.provider);
   const catalogModels = llm ? getProviderCatalogEntry(entry.provider as LLMType)?.models ?? [] : [];
   const catalogModel = llm ? getModelCatalogEntry(entry.provider as LLMType, entry.modelId) : undefined;
-  const caps = entry.capabilities ?? (profile ? defaultCapabilities(profile.providerId, entry.modelId, profile.protocol) : undefined);
+  const caps = entry.capabilities ?? (profile ? defaultCapabilities(profile.providerId, entry.modelId, profile.protocol)
+    : dryRun && llm ? defaultCapabilities(entry.provider as LLMType, entry.modelId, defaultConnection(entry.provider as LLMType).protocol) : undefined);
+  // In a dry run any catalogued model can take part: no key, connection or verification is involved.
+  const choosing = llm && (!!profile || dryRun);
   const signature = profile ? verificationSignature(profile, entry.modelId, caps, entry.reasoningLevel, maxTokens, keys.credentialRevision) : '';
   const result = receipts.results[signature];
   const hasKey = !!profile && !!active[profile.credentialRef];
@@ -59,6 +64,14 @@ export function ParticipantCard({ entry, canRemove, onUpdate, onDuplicate, onRem
   const changeCaps = (patch: Partial<ModelCapabilities>) => { if (caps) onUpdate({ capabilities: { ...caps, ...patch } }); };
 
   function chooseSource(value: string) {
+    if (value.startsWith('dry:')) {
+      const provider = value.slice('dry:'.length) as LLMType;
+      if (provider === entry.provider) return;
+      // Keep a real connection for the new provider if one exists, so turning the dry run off needs no rework.
+      const connection = profiles.find(p => p.id === `provider:${provider}`);
+      onUpdate({ provider, connectionId: connection?.id, modelId: getDefaultModelId(provider), capabilities: undefined, reasoningLevel: undefined });
+      return;
+    }
     if (value.startsWith('baseline:')) {
       const provider = value.slice('baseline:'.length) as AgentRosterProvider;
       onUpdate({ provider, connectionId: undefined, modelId: provider, capabilities: undefined, reasoningLevel: undefined });
@@ -84,6 +97,7 @@ export function ParticipantCard({ entry, canRemove, onUpdate, onDuplicate, onRem
   }
 
   const status = !llm ? <span className="badge">{translate('Internal baseline')}</span>
+    : dryRun ? <span className="badge" role="status">{translate('Dry run')}</span>
     : !profile ? <span className="badge badge-alert">{translate('Choose a provider')}</span>
     : !hasKey ? <span className="badge badge-alert">{translate('No key in this tab')}</span>
     : result?.status === 'verified' ? <span className="badge badge-ok" role="status"><span className="dot" aria-hidden="true" />{translate('Verified in this tab')}</span>
@@ -102,14 +116,16 @@ export function ParticipantCard({ entry, canRemove, onUpdate, onDuplicate, onRem
 
     <div className="participant-card-grid">
       <label className="field"><span>{translate('Provider')}</span>
-        <select aria-label={translate('Connection for {agent}', { agent: entry.name })} value={llm ? entry.connectionId ?? '' : `baseline:${entry.provider}`} onChange={event => chooseSource(event.target.value)}>
+        <select aria-label={translate('Connection for {agent}', { agent: entry.name })} value={!llm ? `baseline:${entry.provider}` : dryRun ? `dry:${entry.provider}` : entry.connectionId ?? ''} onChange={event => chooseSource(event.target.value)}>
+          {dryRun ? LLM_CATALOG.map(p => <option key={p.id} value={`dry:${p.id}`}>{translateLabel(p.displayName)}</option>) : <>
           <option value="">{translate('Choose a provider')}</option>
           {profiles.map(p => <option key={p.id} value={p.id}>{p.name}{active[p.credentialRef] ? '' : ` — ${translate('no key')}`}</option>)}
           {unconnected.map(p => <option key={p.id} value={`new:${p.id}`}>{translateLabel(p.displayName)}</option>)}
+          </>}
           {internalFixturesEnabled() && BASELINE_PROVIDER_IDS.map(id => <option key={id} value={`baseline:${id}`}>{translateLabel(BASELINE_LABELS[id] ?? id)}</option>)}
         </select>
       </label>
-      {llm && profile && <label className="field"><span>{translate('Model')}</span>
+      {choosing && <label className="field"><span>{translate('Model')}</span>
         <select aria-label={translate('Model for {agent}', { agent: entry.name })} value={catalogModel ? entry.modelId : '__custom__'}
           onChange={event => onUpdate({ modelId: event.target.value === '__custom__' ? `${entry.provider}:custom-model` : event.target.value, reasoningLevel: undefined, capabilities: undefined })}>
           <optgroup label={translate('Current models')}>{catalogModels.filter(model => !model.legacy).map(model => <option key={model.id} value={model.id}>{translateLabel(model.label)}</option>)}</optgroup>
@@ -117,10 +133,10 @@ export function ParticipantCard({ entry, canRemove, onUpdate, onDuplicate, onRem
           <option value="__custom__">{translate('Custom model ID')}</option>
         </select>
       </label>}
-      {llm && profile && !catalogModel && <label className="field"><span>{translate('Custom model ID')}</span>
+      {choosing && !catalogModel && <label className="field"><span>{translate('Custom model ID')}</span>
         <input type="text" aria-label={translate('Custom model ID for {agent}', { agent: entry.name })} value={entry.modelId} onChange={event => onUpdate({ modelId: event.target.value })} />
       </label>}
-      {llm && profile && <ReasoningControl entry={entry} reasoning={catalogModel?.reasoning} capabilities={caps} onUpdate={onUpdate} />}
+      {choosing && <ReasoningControl entry={entry} reasoning={catalogModel?.reasoning} capabilities={caps} onUpdate={onUpdate} />}
     </div>
 
     <div className="swatches" role="group" aria-label={translate('Color for {agent}', { agent: entry.name })}>
@@ -130,14 +146,14 @@ export function ParticipantCard({ entry, canRemove, onUpdate, onDuplicate, onRem
       </button>; })}
     </div>
 
-    {llm && profile && <div className="flex flex-wrap items-center gap-3">
+    {llm && profile && !dryRun && <div className="flex flex-wrap items-center gap-3">
       <button type="button" className="btn btn-small" disabled={busy || !hasKey || !caps} onClick={() => void verify()}
         aria-label={translate('Verify model for {agent} (1 request)', { agent: entry.name })}>{busy ? translate('Verifying…') : translate('Verify · 1 request')}</button>
       <span className="hint">{translate('Sends one paid request with this model and effort. Changing either needs a new check.')}</span>
       {(result?.issue || result?.message) && <p role="alert" className="w-full text-sm text-alert">{result.issue ? formatIssue(result.issue) : formatError(result.message)}</p>}
     </div>}
 
-    {llm && profile && caps && <details>
+    {llm && profile && caps && !dryRun && <details>
       <summary className="hint cursor-pointer min-h-11 inline-flex items-center">{translate('Connection details and model capabilities')}</summary>
       <div className="grid gap-3 pt-2">
         <p className="hint break-all">{profile.protocol} · {profile.transport === 'direct' ? profile.endpoint : translate('Via {relay} → {endpoint}', { relay: profile.relayUrl ?? translate('(not configured)'), endpoint: profile.endpoint })}</p>

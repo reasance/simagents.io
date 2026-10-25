@@ -12,8 +12,12 @@ import { useWorldControl } from './hooks/useWorldControl';
 import { useWorldStore, useAliveAgents, useNotableEvents } from './stores/world';
 import { useEditorStore, useAppMode, useIsAnalyticsMode, useIsReplayMode, useIsPromptsMode } from './stores/editor';
 import { useReplayStore } from './stores/replay';
+import { useDryRunStore } from './stores/dryRun';
+import { useRosterStore } from './stores/roster';
+import { DRY_RUN_SAMPLES } from './services/participants';
 import { TopBar } from './components/TopBar';
 import { SetupJourney, type SetupStep } from './components/Setup/SetupJourney';
+import { PARTICIPANT_COLORS } from './components/Setup/ParticipantCard';
 import { ConfigPanel } from './components/ConfigPanel';
 import { StorageNotice } from './components/StorageNotice';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -29,7 +33,7 @@ import { ReplayPage } from './pages/ReplayPage';
 import { PromptsPage } from './pages/PromptsPage';
 
 /** The world before it starts: what this is, and the one thing to do next. */
-function FirstRun({ onSetup, onImport }: { onSetup: () => void; onImport: () => void }) {
+function FirstRun({ onSetup, onDryRun, onImport }: { onSetup: () => void; onDryRun: () => void; onImport: () => void }) {
   useLocale();
   return <section className="first-run" aria-label={translate('Simulation setup')}>
     <div className="first-run-card">
@@ -42,6 +46,7 @@ function FirstRun({ onSetup, onImport }: { onSetup: () => void; onImport: () => 
       </dl>
       <div className="flex flex-wrap gap-3">
         <button type="button" className="btn btn-primary" onClick={onSetup}>{translate('Set up a simulation')}</button>
+        <button type="button" className="btn" onClick={onDryRun} title={translate('Scripted replies in this tab: no keys, no requests, no cost')}>{translate('Try a dry run')}</button>
         <button type="button" className="btn btn-quiet" onClick={onImport}>{translate('Import saved world')}</button>
       </div>
     </div>
@@ -141,6 +146,17 @@ export default function App() {
   }, [selectedAgentId, selectedResourceId]);
 
   const openSetup = (step?: SetupStep) => { returnFocus.current = document.activeElement as HTMLElement; setSetup(step ?? 'auto'); };
+  // A lone participant has nobody to meet, so a first dry run gets company from other providers and efforts.
+  const startDryRunSetup = () => {
+    useDryRunStore.getState().setEnabled(true);
+    const { roster, addEntry } = useRosterStore.getState();
+    if (roster.length < 2) {
+      const used = new Set(roster.map(entry => entry.color.toLowerCase()));
+      const free = PARTICIPANT_COLORS.map(color => color.value).filter(color => !used.has(color));
+      DRY_RUN_SAMPLES.slice(roster.length).forEach((sample, index) => addEntry({ ...sample, color: free[index] ?? sample.color }));
+    }
+    openSetup('participants');
+  };
   const openConfig = () => { returnFocus.current = document.activeElement as HTMLElement; setShowConfig(true); };
   const restoreFocus = () => requestAnimationFrame(() => {
     const previous = returnFocus.current;
@@ -204,7 +220,7 @@ export default function App() {
               : mobileView === 'feed' ? <Feed />
               : <div className="flex-1 overflow-y-auto">{detail ?? <p className="hint p-4">{translate('Tap an agent or resource on the map to view details')}</p>}</div>}
           </div>}
-          {ready && <FirstRun onSetup={() => openSetup()} onImport={() => importInput.current?.click()} />}
+          {ready && <FirstRun onSetup={() => openSetup()} onDryRun={startDryRunSetup} onImport={() => importInput.current?.click()} />}
         </main>
         <aside className="world-rail" id="desktop-observation-panel" aria-label={translate('Agent details and events')}>
           <section className="rail-section"><div className="rail-scroll">{detail ?? <ParticipantList />}</div></section>

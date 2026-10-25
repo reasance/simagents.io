@@ -105,7 +105,11 @@ Legacy metadata migration tests cover preserved IDs/models/routes, backup, idemp
 
 ### Guided BYOK setup
 
-Against the production preview, run `node scripts/setup-smoke.mjs` with the same `PLAYWRIGHT_MODULE_DIR` and `SIMAGENTS_SMOKE_URL` used by the production smoke tests. Set `SIMAGENTS_SMOKE_WIDTH=390` for the narrow layout and `SIMAGENTS_SMOKE_BROWSER=webkit` for WebKit. The script intercepts provider traffic, exercises the entire journey, checks keyboard focus and writes local review screenshots under `.tmp/setup`. `scenarios.test.ts` verifies actual seeded conditions without inference. Full-app mobile overflow and real five-person usability testing remain separate gates.
+Against the production preview, run `node scripts/setup-smoke.mjs` with the same `PLAYWRIGHT_MODULE_DIR` and `SIMAGENTS_SMOKE_URL` used by the production smoke tests. Set `SIMAGENTS_SMOKE_WIDTH=390` for the narrow layout and `SIMAGENTS_SMOKE_BROWSER=webkit` for WebKit. The script intercepts provider traffic, exercises the entire journey, checks keyboard focus and writes local review screenshots under `.tmp/setup`. Full-app mobile overflow and real five-person usability testing remain separate gates.
+
+### Dry run
+
+`node scripts/dry-run-smoke.mjs`, against the production preview with the same variables, starts a dry run from the first screen, waits for speech in the feed, checks the agent detail and a captured prompt, and fails if any request leaves the page origin. Run it with `SIMAGENTS_SMOKE_WIDTH=390` for the narrow layout; screenshots go to `.tmp/dry-run`. `engine/dry-run.test.ts` checks that a dry run reads no key and calls no `fetch`, that its wait grows with effort, and that it speaks to agents within earshot. `apps/web/src/__tests__/dry-run.test.ts` covers its preflight and the saved-world flag.
 
 ### Release checkpoint gates
 

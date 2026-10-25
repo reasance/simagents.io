@@ -12,7 +12,8 @@ import { useSessionLimitsStore } from '../../stores/sessionLimits';
 import { useConnectionVerificationStore } from '../../stores/connectionVerification';
 import { useRequestCaptureStore } from '../../stores/requestCapture';
 import { useProxyUrl } from '../../stores/settings';
-import { byokPreflight, internalFixturesEnabled } from '../../services/byok-preflight';
+import { byokPreflight, dryRunPreflightIssue, internalFixturesEnabled } from '../../services/byok-preflight';
+import { useDryRunStore } from '../../stores/dryRun';
 import { profileVerificationIssue } from '../../services/profile-verification-gate';
 import { loadSavedWorld, type SavedWorld } from '../../services/persistence';
 import { effortLabel, modelLabel, providerLabel } from '../../services/participants';
@@ -47,9 +48,12 @@ export function SetupJourney({ initialStep, onClose, onStart, onAdvanced }: Prop
   const proxy = useProxyUrl();
   const capture = useRequestCaptureStore();
   useConnectionVerificationStore(s => s.results);
+  const dryRun = useDryRunStore(s => s.enabled), setDryRun = useDryRunStore(s => s.setEnabled);
   const activeKeys = keys.getActiveKeys();
-  const hasKey = Object.keys(activeKeys).some(id => isLLMProviderId(id)) || profiles.some(profile => !!activeKeys[profile.credentialRef]) || internalFixturesEnabled();
-  const issue = byokPreflight(roster, activeKeys, proxy, internalFixturesEnabled(), profiles) ?? profileVerificationIssue(roster, profiles);
+  const hasKey = dryRun || Object.keys(activeKeys).some(id => isLLMProviderId(id)) || profiles.some(profile => !!activeKeys[profile.credentialRef]) || internalFixturesEnabled();
+  const dryRunIssue = dryRunPreflightIssue(roster, internalFixturesEnabled());
+  const issue = dryRun ? dryRunIssue && formatIssue(dryRunIssue)
+    : byokPreflight(roster, activeKeys, proxy, internalFixturesEnabled(), profiles) ?? profileVerificationIssue(roster, profiles);
   const [step, setStep] = useState<SetupStep>(() => initialStep ?? (!hasKey ? 'keys' : issue ? 'participants' : 'start'));
   const [busy, setBusy] = useState(false), [limitsValid, setLimitsValid] = useState(true), [error, setError] = useState<AppIssue>();
   const [saved, setSaved] = useState<SavedWorld>(), [saveError, setSaveError] = useState(''), [choice, setChoice] = useState<'resume' | 'new'>('new');
@@ -59,11 +63,14 @@ export function SetupJourney({ initialStep, onClose, onStart, onAdvanced }: Prop
   useEffect(() => { heading.current?.focus(); }, [step]);
   useEffect(() => {
     let cancelled = false;
-    void loadSavedWorld().then(world => { if (!cancelled) { setSaved(world); setChoice(world ? 'resume' : 'new'); } })
+    void loadSavedWorld().then(world => { if (!cancelled) setSaved(world); })
       .catch(() => { if (!cancelled) setSaveError('Saved world could not be read. Existing data has been preserved.'); });
     return () => { cancelled = true; };
   }, []);
 
+  // A world started on scripted replies resumes only as a dry run, and a model world only with models.
+  const resumable = !!saved && (saved.snapshot.configuration?.dryRun === true) === dryRun;
+  useEffect(() => { setChoice(resumable ? 'resume' : 'new'); }, [resumable]);
   const index = STEPS.findIndex(s => s.id === step);
   const canLeave = (id: SetupStep) => id === 'keys' ? hasKey : id === 'participants' ? !issue : !issue && limitsValid;
   const reachable = (id: SetupStep) => STEPS.slice(0, STEPS.findIndex(s => s.id === id)).every(s => canLeave(s.id));
@@ -77,7 +84,7 @@ export function SetupJourney({ initialStep, onClose, onStart, onAdvanced }: Prop
   };
   async function start() {
     setBusy(true); setError(undefined);
-    try { await onStart(choice === 'resume'); if (useEditorStore.getState().mode === 'simulation') onClose(); }
+    try { await onStart(choice === 'resume' && resumable); if (useEditorStore.getState().mode === 'simulation') onClose(); }
     catch (cause) { setError(errorIssue(cause)); }
     finally { setBusy(false); }
   }
@@ -103,6 +110,11 @@ export function SetupJourney({ initialStep, onClose, onStart, onAdvanced }: Prop
         <h2 ref={heading} tabIndex={-1}>{translate(STEPS[index].label)}</h2>
 
         {step === 'keys' && <>
+          <div className="choice-cards" role="group" aria-label={translate('How participants decide')}>
+            <button type="button" aria-pressed={!dryRun} onClick={() => setDryRun(false)}><span>{translate('Real models')}</span><span>{translate('Your keys, billed by each provider')}</span></button>
+            <button type="button" aria-pressed={dryRun} onClick={() => setDryRun(true)}><span>{translate('Dry run')}</span><span>{translate('Scripted replies in this tab: no keys, no requests, no cost')}</span></button>
+          </div>
+          {dryRun ? <p className="notice" role="status">{translate('Participants answer with scripted local replies after a delay that grows with their effort. Use it to try the interface; the world says nothing about the models.')}</p> : <>
           <p className="setup-lede">{translate('Paste a key for each provider you want to bring. Your provider bills every request. Keys stay in this tab unless you save them encrypted on this device.')}</p>
           <section className="setup-section" aria-label={translate('Provider keys')}><ProviderKeys /></section>
           <details className="setup-section">
@@ -113,10 +125,11 @@ export function SetupJourney({ initialStep, onClose, onStart, onAdvanced }: Prop
             <summary className="cursor-pointer min-h-11 flex items-center font-medium">{translate('Custom endpoints and relays')}</summary>
             <ConnectionsConfig />
           </details>
+          </>}
         </>}
 
         {step === 'participants' && <>
-          <p className="setup-lede">{translate('Each participant is a model with an effort level. Add the same model more than once with different efforts to compare them. Every participant needs one verification request before the world starts.')}</p>
+          <p className="setup-lede">{translate(dryRun ? 'Each participant is a model with an effort level. In a dry run no model is called: the effort only sets how long each reply takes.' : 'Each participant is a model with an effort level. Add the same model more than once with different efforts to compare them. Every participant needs one verification request before the world starts.')}</p>
           <div className="grid gap-4">
             {roster.map((entry, i) => <ParticipantCard key={entry.id ?? i} entry={entry} canRemove={roster.length > 1}
               onUpdate={patch => updateEntry(i, patch)} onDuplicate={() => duplicateEntry(i)} onRemove={() => removeEntry(i)} />)}
@@ -127,6 +140,7 @@ export function SetupJourney({ initialStep, onClose, onStart, onAdvanced }: Prop
 
         {step === 'start' && <>
           <p className="setup-lede">{translate('Time keeps passing while models think, so a slower model spends more of its life deciding. Nothing in the world tells the participants to cooperate.')}</p>
+          {dryRun && <p className="notice" role="status">{translate('Dry run: replies are scripted in this tab. Nothing is sent to a provider and nothing is billed. The saved world is marked as a dry run.')}</p>}
           <section className="setup-section">
             <header><span className="engraved">{translate('Participants')}</span><button type="button" className="btn btn-quiet btn-small" onClick={() => setStep('participants')}>{translate('Edit')}</button></header>
             <div className="overflow-x-auto" role="region" tabIndex={0} aria-label={translate('Participants')}><table className="summary-table">
@@ -137,7 +151,8 @@ export function SetupJourney({ initialStep, onClose, onStart, onAdvanced }: Prop
               </tr>)}</tbody>
             </table></div>
           </section>
-          {saved && <section className="setup-section">
+          {saved && !resumable && <p className="hint">{translate(dryRun ? 'The saved world was run with real models; starting replaces it. Switch to real models to resume it.' : 'The saved world is a dry run; starting replaces it. Switch to the dry run to resume it.')}</p>}
+          {saved && resumable && <section className="setup-section">
             <header><span className="engraved">{translate('World')}</span></header>
             {!saved.snapshot.random?.complete && <p role="note" className="hint">{translate('Original random history is unavailable for this save. Random sequence continuity is preserved only from its first updated save.')}</p>}
             <div className="choice-cards">
@@ -152,7 +167,7 @@ export function SetupJourney({ initialStep, onClose, onStart, onAdvanced }: Prop
               <span>{translate('Capture actual requests for this session')}<span id="request-capture-description" className="hint block mt-1">{translate('Optional local diagnostics: prompts and responses are saved on this device. Up to 100 completed attempts per session, up to 16,384 characters per request/response body; truncation is marked. Authentication headers and URLs are excluded; known session keys are redacted. Shared storage budget applies. Applies when starting a session.')}</span></span>
             </label>
           </section>
-          {issue && <div className="notice" role="status"><p className="m-0">{issue}</p><button type="button" className="btn btn-small mt-2" onClick={() => setStep('participants')}>{translate('Return to model verification')}</button><p className="hint mt-2 mb-0">{translate('Changing the response token limit requires verifying the model again.')}</p></div>}
+          {issue && <div className="notice" role="status"><p className="m-0">{issue}</p><button type="button" className="btn btn-small mt-2" onClick={() => setStep('participants')}>{translate(dryRun ? 'Edit' : 'Return to model verification')}</button>{!dryRun && <p className="hint mt-2 mb-0">{translate('Changing the response token limit requires verifying the model again.')}</p>}</div>}
         </>}
         {saveError && <p role="alert" className="text-sm text-alert">{formatError(saveError)}</p>}
         {error && <p role="alert" className="notice notice-alert">{formatIssue(error)}</p>}
@@ -164,7 +179,7 @@ export function SetupJourney({ initialStep, onClose, onStart, onAdvanced }: Prop
           <button type="button" className="btn btn-quiet" onClick={onAdvanced}>{translate('Advanced settings')}</button>
           {index > 0 && <button type="button" className="btn" onClick={() => setStep(STEPS[index - 1].id)}>{translate('Back')}</button>}
           {next ? <button type="button" className="btn btn-primary" disabled={!canLeave(step)} onClick={() => setStep(next)}>{translate('Continue')}</button>
-            : <button type="button" className="btn btn-primary" disabled={busy || !!issue || !limitsValid || !!saveError} onClick={() => void start()}>{translate(busy ? 'Starting…' : choice === 'resume' && saved ? 'Resume world' : 'Start world')}</button>}
+            : <button type="button" className="btn btn-primary" disabled={busy || !!issue || !limitsValid || !!saveError} onClick={() => void start()}>{translate(busy ? 'Starting…' : choice === 'resume' && resumable ? 'Resume world' : dryRun ? 'Start dry run' : 'Start world')}</button>}
         </div>
       </footer>
     </div>

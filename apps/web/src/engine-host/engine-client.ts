@@ -22,6 +22,8 @@ import type { WorldEvent } from '../stores/world';
 
 export interface EngineInitPayload {
   captureRequests?: boolean;
+  /** Scripted local replies; keys and connections must be empty. */
+  dryRun?: boolean;
   limits?: import('@simagents/engine/engine/llm/request-budget').SessionLimits;
   roster: AgentRosterEntry[];
   connections?: import('@simagents/shared').ConnectionProfile[];

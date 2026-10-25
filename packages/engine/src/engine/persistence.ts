@@ -134,7 +134,7 @@ export interface EngineMetadataSnapshotV1 {
 export interface WorldSnapshotV1 {
   random?: RandomSnapshot;
   metrics?: WorldMetrics;
-  configuration?: { overrides: RuntimeConfigOverrides; customPrompt: string | null; connections?: ConnectionProfile[]; roster?: AgentRosterEntry[] };
+  configuration?: { overrides: RuntimeConfigOverrides; customPrompt: string | null; connections?: ConnectionProfile[]; roster?: AgentRosterEntry[]; /** Worlds run on scripted replies, not models */ dryRun?: boolean };
   schemaVersion: 1;
   savedAtSimTimeMs: number;
   worldSeed: string;
@@ -309,6 +309,7 @@ export function validateWorldSnapshotV1(input: unknown): WorldSnapshotV1 {
       (snapshot.configuration.customPrompt !== null && typeof snapshot.configuration.customPrompt !== 'string')) {
       throw invalid('Invalid snapshot configuration');
     }
+    if (snapshot.configuration.dryRun !== undefined && typeof snapshot.configuration.dryRun !== 'boolean') throw invalid('Invalid dry run flag');
     if (snapshot.configuration.roster !== undefined) validateRoster(snapshot.configuration.roster);
     if (snapshot.configuration.connections !== undefined) {
       if (!Array.isArray(snapshot.configuration.connections) || snapshot.configuration.connections.length > 100) throw invalid('Invalid connection metadata');

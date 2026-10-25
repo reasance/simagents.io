@@ -1,4 +1,4 @@
-import { getModelCatalogEntry, getProviderCatalogEntry, isLLMProviderId, type AgentRosterEntry } from '@simagents/shared';
+import { getDefaultModelId, getModelCatalogEntry, getProviderCatalogEntry, isLLMProviderId, type AgentRosterEntry } from '@simagents/shared';
 import { translateLabel } from '../i18n';
 import type { Agent } from '../stores/world';
 
@@ -29,3 +29,11 @@ export function effortLabel(entry: Pick<AgentRosterEntry, 'reasoningLevel'>): st
 export function participantSummary(entry: AgentRosterEntry): string {
   return [modelLabel(entry), effortLabel(entry)].filter(Boolean).join(' · ');
 }
+
+/** Participants a first dry run starts with: one model at two efforts and two other providers. */
+export const DRY_RUN_SAMPLES: Array<Pick<AgentRosterEntry, 'name' | 'provider' | 'modelId' | 'reasoningLevel' | 'color'>> = [
+  { name: 'Agent 1', provider: 'claude', modelId: getDefaultModelId('claude'), reasoningLevel: 'low', color: '#8fb8de' },
+  { name: 'Agent 2', provider: 'claude', modelId: getDefaultModelId('claude'), reasoningLevel: 'max', color: '#e39a7a' },
+  { name: 'Agent 3', provider: 'codex', modelId: getDefaultModelId('codex'), color: '#9fd3a8' },
+  { name: 'Agent 4', provider: 'gemini', modelId: getDefaultModelId('gemini'), reasoningLevel: 'low', color: '#c6a0e0' },
+];

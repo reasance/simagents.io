@@ -1,7 +1,7 @@
 import { AppError, errorIssue } from '@simagents/shared';
 import { MAX_SESSION_TRACES } from '@simagents/engine/engine/llm/request-trace';
 import { RequestBudget, DEFAULT_SESSION_LIMITS, RequestBudgetError, validateSessionLimits, type SessionLimits } from '@simagents/engine/engine/llm/request-budget';
-import { byokPreflightIssue, internalFixturesEnabled } from '../services/byok-preflight-issue';
+import { byokPreflightIssue, dryRunPreflightIssue, internalFixturesEnabled } from '../services/byok-preflight-issue';
 import { validateRoster, validateConnectionProfile, type AgentRosterEntry, type LLMType, type ConnectionProfile } from '@simagents/shared';
 import {
   createBrowserAgentDecisionProvider,
@@ -35,6 +35,8 @@ import { worldEventToReplayEvent } from './replay-events';
 
 interface InitPayload {
   captureRequests?: boolean;
+  /** Scripted local replies; the client sends no keys and no connections. */
+  dryRun?: boolean;
   limits?: SessionLimits;
   roster: AgentRosterEntry[];
   connections?: import('@simagents/shared').ConnectionProfile[];
@@ -62,6 +64,7 @@ let engine: SimEngine | undefined;
 let requestBudget: RequestBudget | undefined;
 let activeProfiles: ConnectionProfile[] = [];
 let activeRoster: AgentRosterEntry[] = [];
+let activeDryRun = false;
 const relayTokens = new Map<string, string>();
 const blockedRelays = new Set<string>();
 let unsubscribe: (() => void) | undefined;
@@ -224,11 +227,16 @@ async function init(payload: InitPayload): Promise<void> {
   const limits = validateSessionLimits(payload.limits ?? DEFAULT_SESSION_LIMITS);
   const profiles = (payload.connections ?? []).map(validateConnectionProfile);
   if (profiles.length > 100 || new Set(profiles.map((p) => p.id)).size !== profiles.length) throw new Error('Invalid or duplicate connection profiles');
+  const dryRun = payload.dryRun === true;
+  // A dry run never carries credentials or endpoints into the worker.
+  if (dryRun && (Object.keys(payload.keys).length || profiles.length)) throw new Error('A dry run takes no keys or connections');
   if (payload.roster.length) {
-    const issue = byokPreflightIssue(payload.roster, payload.keys, payload.proxyUrl ?? '', internalFixturesEnabled(), payload.connections);
+    const issue = dryRun ? dryRunPreflightIssue(payload.roster, internalFixturesEnabled())
+      : byokPreflightIssue(payload.roster, payload.keys, payload.proxyUrl ?? '', internalFixturesEnabled(), payload.connections);
     if (issue) throw new AppError(issue);
   }
   if (payload.resume) validateWorldSnapshotV1(payload.resume);
+  if (payload.resume && (payload.resume.configuration?.dryRun === true) !== dryRun) throw new AppError({ code: 'DRY_RUN_MISMATCH' });
   stopStateTimer();
   stopSnapshotTimer();
   unsubscribe?.();
@@ -243,6 +251,7 @@ async function init(payload: InitPayload): Promise<void> {
     if (token) relayTokens.set(profile.relayUrl!, token);
   }
   activeRoster = structuredClone(payload.roster);
+  activeDryRun = dryRun;
   resetRuntimeConfig();
   if (payload.configOverrides) {
     setRuntimeConfig(payload.configOverrides as Parameters<typeof setRuntimeConfig>[0]);
@@ -262,7 +271,7 @@ async function init(payload: InitPayload): Promise<void> {
   const rosterProviderFactory = createRosterProviderFactory(
     payload.roster,
     keySource(payload.keys),
-    { proxyUrl: payload.proxyUrl || undefined, maxTokens: limits.maxOutputTokens, budget: requestBudget, connections: payload.connections,
+    { dryRun, proxyUrl: payload.proxyUrl || undefined, maxTokens: limits.maxOutputTokens, budget: requestBudget, connections: payload.connections,
       getRelayAccessToken: profile => relayTokens.get(profile.relayUrl!),
       traceSecrets: Object.values(payload.keys).filter((key): key is string => typeof key === 'string'),
       onTrace: payload.captureRequests === true ? trace => {
@@ -328,7 +337,7 @@ function requireEngine(): SimEngine {
 
 function captureSnapshot(): WorldSnapshotV1 {
   const snapshot = requireEngine().snapshot();
-  snapshot.configuration = { ...snapshot.configuration!, connections: activeProfiles, roster: activeRoster };
+  snapshot.configuration = { ...snapshot.configuration!, connections: activeProfiles, roster: activeRoster, ...(activeDryRun ? { dryRun: true } : {}) };
   return JSON.parse(JSON.stringify(snapshot)) as WorldSnapshotV1;
 }
 

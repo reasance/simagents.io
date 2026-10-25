@@ -20,6 +20,7 @@ import {
 // entry back and reinstall onmessage with an empty session in WebKit.
 import { LLMDecisionProvider } from './llm-provider';
 import { DecisionModelProvider } from './decision-model-provider';
+import { DryRunDecisionProvider } from './dry-run-provider';
 import { ProviderUnavailableError } from './request-builder';
 import type { RequestBudget } from './request-budget';
 import type { KeySource } from './keys';
@@ -33,6 +34,8 @@ export interface RosterProviderFactoryOptions {
   proxyUrl?: string;
   maxTokens?: number;
   temperature?: number;
+  /** Scripted local replies for every model participant: no key is read and nothing is sent. */
+  dryRun?: boolean;
 }
 
 export interface ProviderFactoryTools {
@@ -68,7 +71,7 @@ export function createRosterProviderFactory(
     return inherited;
   };
 
-  return (agent) => {
+  return (agent, tools) => {
     const entry = entryForAgent(agent);
 
     if (!entry) {
@@ -79,6 +82,18 @@ export function createRosterProviderFactory(
     }
     if (!isLLMProviderId(entry.provider)) {
       throw new Error(`No configured connection for agent ${agent.id}`);
+    }
+    if (options.dryRun) {
+      const modelId = entry.modelId || getDefaultModelId(entry.provider);
+      return new DryRunDecisionProvider({
+        provider: entry.provider,
+        modelId,
+        reasoningLevel: reconcileReasoning(entry.provider, modelId, entry.reasoningLevel, entry.capabilities).reasoningLevel,
+        connectionId: entry.id ?? entry.provider,
+        budget: options.budget,
+        onTrace: options.onTrace,
+        sleepWall: tools.sleepWall,
+      });
     }
 
     const connection = entry.connectionId ? connections.get(entry.connectionId) : undefined;
