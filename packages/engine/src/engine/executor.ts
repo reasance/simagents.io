@@ -36,6 +36,7 @@ export interface DecisionMeta {
   usedFallback?: boolean;
   processingTimeMs?: number;
   modelId?: string;
+  effort?: string;
   tokens?: {
     input?: number;
     output?: number;
@@ -135,6 +136,7 @@ export class ActionExecutor {
               // New telemetry fields are additive: omit them entirely when
               // absent (baselines) so payload key-presence checks stay clean.
               ...(decisionMeta?.modelId !== undefined ? { modelId: decisionMeta.modelId } : {}),
+              ...(decisionMeta?.effort !== undefined ? { effort: decisionMeta.effort } : {}),
               ...(decisionMeta?.tokens !== undefined ? { tokens: decisionMeta.tokens } : {}),
               ...(decisionMeta?.pricingContext !== undefined ? { pricingContext: decisionMeta.pricingContext, costEligible: decisionMeta.costEligible === true } : {}),
             },

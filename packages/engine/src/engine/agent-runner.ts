@@ -168,6 +168,7 @@ export class AgentRunner {
           usedFallback,
           processingTimeMs,
           modelId: decision.telemetry?.modelId,
+          effort: decision.telemetry?.effort,
           pricingContext: decision.telemetry?.pricingContext,
           costEligible: decision.telemetry?.costEligible,
           tokens: decision.telemetry?.tokens,

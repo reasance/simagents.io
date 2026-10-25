@@ -30,6 +30,8 @@ export interface DecisionTelemetry {
   modelId?: string;
   pricingContext?: PricingContext;
   costEligible?: boolean;
+  /** Reasoning effort the request was sent with, if any */
+  effort?: string;
   tokens?: {
     input?: number;
     output?: number;

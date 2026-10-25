@@ -125,6 +125,7 @@ export class LLMDecisionProvider implements DecisionProvider {
       decision.telemetry = {
         pricingContext: this.config.connection ? { providerId: this.config.provider, modelId: usedModelId(request.body, this.config.modelId ?? getDefaultModelId(this.config.provider)), endpoint: this.config.connection.endpoint } : undefined,
         costEligible: extracted.costEligible === true,
+        ...(this.config.reasoningLevel !== undefined ? { effort: String(this.config.reasoningLevel) } : {}),
         modelId: typeof reportedModel === 'string' && reportedModel.length > 0 && reportedModel.length <= 500
           ? reportedModel : usedModelId(request.body, this.config.modelId ?? getDefaultModelId(this.config.provider)),
         tokens: extracted.usage

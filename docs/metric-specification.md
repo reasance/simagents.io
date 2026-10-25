@@ -26,6 +26,23 @@ Metric claims in SimAgents must identify the metric tier and the failure mode be
 | Cooperation timeline | experimental | per-tick cooperation index for discovery curve analysis | Observing S-curve emergence | Noisy at small window sizes |
 | Phase 2 social graph metrics | experimental | graph statistics over knowledge/trust relations | Exploratory diagnostics | Null model still evolving |
 
+## Emergence Metrics (Relations panel and exports)
+
+Computed by `packages/engine/src/engine/emergence-metrics.ts` from the event log only; agents never see them. Exported as agents CSV, interactions CSV and JSON from Analytics → Relations.
+
+| Metric | Tier | Formula | Notes | Failure Mode |
+|--------|------|---------|-------|--------------|
+| Survival minutes | validated | death `simTimeMs` (or snapshot time if alive) / 60 000 | Per agent | All agents start at sim time 0; late spawns would be overstated |
+| Decisions per sim hour | descriptive | decision events / survival hours | Speed is part of the evaluation: provider latency and effort reduce it | Sim speed changes during a run distort comparisons; keep speed fixed |
+| Mean decision latency | descriptive | mean `processingTimeMs` of decision events | Wall-clock provider latency | Includes network and relay time, not only model time |
+| Utterances / questions | descriptive | `agent_spoke` count; utterances containing `?` | Questions are a surface proxy | Rhetorical questions count; questions without `?` do not |
+| Distinct listeners / addressees | descriptive | distinct agents who heard / were addressed | Contact breadth | Depends on spatial density; compare against random-walk baselines |
+| Gifts given / received | descriptive | `agent_gave` events by giver / recipient | Unilateral transfers | Cannot tell gifts from payments agreed in speech; read the conversation |
+| Strikes / takes / trades | descriptive | successful `harm` / `steal` / `trade` decisions | Physical acts, not moral judgements | Failed attempts are excluded |
+| Addressed-speech reciprocity | heuristic | share of directed addressed pairs answered by addressed speech the other way | Conversation proxy | Null model: shuffle addressees among agents within earshot at the same tick |
+| Gift reciprocity | heuristic | share of directed gift pairs with a gift the other way | Exchange proxy | Small counts; report pair counts with the ratio |
+| Shared place names | experimental | names independently proposed by ≥2 agents | Convention formation proxy | Common words (e.g. "river") converge by chance; compare with name frequency in single-agent runs |
+
 ## Null-Model Rule
 
 Any metric above the `descriptive` tier must document:

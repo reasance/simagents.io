@@ -203,6 +203,15 @@ async function verifyLocalAnalytics(page) {
     visible
   );
 
+  await page.getByRole('button', { name: 'Export agents CSV' }).waitFor();
+  const relations = await page.evaluate((names) => {
+    const section = [...document.querySelectorAll('section')].find((node) => node.textContent?.includes('Relations Metrics'));
+    const rows = [...(section?.querySelectorAll('tbody tr') ?? [])].map((row) => row.textContent ?? '');
+    return { section: !!section, rows: rows.length, everyAgent: names.every((name) => rows.some((row) => row.includes(name))) };
+  }, baselineRoster.map((entry) => entry.name));
+  results.push({ step: 'local-relations', ...relations });
+  assertSmoke(relations.section && relations.rows === baselineRoster.length && relations.everyAgent, 'relations panel did not list every agent', relations);
+
   await page.getByRole('button', { name: /Back to City/ }).click();
   await page.waitForFunction(() => document.body.innerText.includes('Paused'));
 }

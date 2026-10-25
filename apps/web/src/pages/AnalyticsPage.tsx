@@ -12,6 +12,7 @@ import { SurvivalPanel } from '../components/Analytics/panels/SurvivalPanel';
 import { EconomyPanel } from '../components/Analytics/panels/EconomyPanel';
 import { BehaviorPanel } from '../components/Analytics/panels/BehaviorPanel';
 import { TemporalPanel } from '../components/Analytics/panels/TemporalPanel';
+import { RelationsPanel } from '../components/Analytics/panels/RelationsPanel';
 
 export function AnalyticsPage() {
   useLocale();
@@ -131,6 +132,17 @@ export function AnalyticsPage() {
             </div>
           </section>
         </div>
+
+        {/* Relations Panel: what agents said and did to each other */}
+        <section className="bg-city-surface rounded-lg border border-city-border overflow-hidden flex flex-col mt-4">
+          <div className="flex-none px-4 py-3 border-b border-city-border bg-city-surface-hover/30">
+            <h2 className="text-sm font-semibold text-city-text flex items-center gap-2">
+              <span className="text-city-accent">🗣️</span>{translate("Relations Metrics")}</h2>
+          </div>
+          <div tabIndex={0} className="overflow-x-auto p-4">
+            <RelationsPanel />
+          </div>
+        </section>
       </main>
 
       {/* Footer with refresh info */}
