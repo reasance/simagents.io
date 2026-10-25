@@ -90,7 +90,7 @@ test('an explicit start gives unresponsive agents another chance', async () => {
   expect(calls.get(failingId())).toBeGreaterThan(1);
 });
 
-test('an undecided answer is neither an action nor a failure', async () => {
+test('an undecided answer takes time but is neither an action nor a failure', async () => {
   const undecided: UndecidedDecision = { undecided: true, reasoning: 'Undecided', probabilities: { rest: 0.49, forage: 0.51 }, telemetry: { modelId: 'levanto-sage-v1.3' } };
   const calls: string[] = [];
   const engine = new SimEngine({
@@ -104,8 +104,12 @@ test('an undecided answer is neither an action nor a failure', async () => {
   engines.push(engine);
   await engine.seed({ agentCount: 1 });
   await engine.start();
-  for (let i = 0; i < 5 && calls.length < 3; i++) { await settle(); await engine.tickWall(1000); }
   await settle();
+  // Doing nothing takes the configured simulated time before the next question.
+  await engine.tickWall(59_000);
+  await settle();
+  expect(calls.length).toBe(1);
+  for (let i = 0; i < 5 && calls.length < 3; i++) { await engine.tickWall(60_000); await settle(); }
   expect(calls.length).toBe(3);
   expect(eventsOf('agent_undecided').map((event) => event.payload)).toEqual([
     expect.objectContaining({ probabilities: { rest: 0.49, forage: 0.51 }, modelId: 'levanto-sage-v1.3' }),

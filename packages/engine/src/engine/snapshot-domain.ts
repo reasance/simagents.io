@@ -91,7 +91,7 @@ const worldSchema = z.object({ id: positiveCount, currentTick: count, startedAt:
 
 const numbers = (names: string[], validator: z.ZodNumber = amount) => Object.fromEntries(names.map(name => [name, validator.optional()]));
 const partial = (shape: z.ZodRawShape) => z.object(shape).strict().partial();
-const durations = ['defaultMs', 'failedActionPenaltyMs', 'movePerTileMs', 'gatherMs', 'forageMs', 'workMs', 'sleepMs', 'tradeMs', 'buyMs', 'consumeMs', 'shareInfoMs', 'signalMs', 'harmMs', 'stealMs'];
+const durations = ['defaultMs', 'failedActionPenaltyMs', 'movePerTileMs', 'gatherMs', 'forageMs', 'workMs', 'sleepMs', 'tradeMs', 'buyMs', 'consumeMs', 'shareInfoMs', 'signalMs', 'speakMs', 'undecidedMs', 'harmMs', 'stealMs'];
 export const runtimeOverridesSchema = partial({
   simulation: partial({ tickIntervalMs: positiveCount }),
   agent: partial({ startingBalance: amount, startingHunger: needs, startingEnergy: needs, startingHealth: needs }),

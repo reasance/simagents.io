@@ -481,6 +481,8 @@ export const CONFIG = {
     shareInfoMs: env('ACTION_DURATION_SHARE_INFO_MS', 5000),
     signalMs: env('ACTION_DURATION_SIGNAL_MS', 5000),
     speakMs: env('ACTION_DURATION_SPEAK_MS', 5000),
+    /** Time a decision model's undecided turn takes: doing nothing still takes time */
+    undecidedMs: env('ACTION_DURATION_UNDECIDED_MS', 60000),
     harmMs: env('ACTION_DURATION_HARM_MS', 10000),
     stealMs: env('ACTION_DURATION_STEAL_MS', 10000),
   },
@@ -988,6 +990,8 @@ export interface RuntimeConfigOverrides {
     consumeMs?: number;
     shareInfoMs?: number;
     signalMs?: number;
+    speakMs?: number;
+    undecidedMs?: number;
     harmMs?: number;
     stealMs?: number;
   };

@@ -8,7 +8,7 @@ import { getEventsByAgent } from '../engine-memory/queries/events';
 import { getAllResourceSpawns, getAllShelters } from '../engine-memory/queries/world';
 import { agentRng, type RandomSource } from '../utils/random';
 import { materializeVitals } from './vitals';
-import { getAgentBusyUntil } from './agent-meta';
+import { getAgentBusyUntil, setAgentBusyUntil } from './agent-meta';
 import { tickFromSimTime } from './time';
 import { ProviderRequestError, type ProviderErrorCode } from './llm/provider-error';
 import { appendEvent } from '../engine-memory/queries/events';
@@ -173,7 +173,10 @@ export class AgentRunner {
             modelId: decision.telemetry?.modelId,
             tokens: decision.telemetry?.tokens,
           });
-          if (getRuntimeConfig().engine.minDecisionIntervalMs <= 0) await this.options.host.sleepWall(1, signal);
+          // Doing nothing still takes simulated time, the same for every model.
+          const undecidedMs = getRuntimeConfig().durations.undecidedMs;
+          await this.options.executor.mutate(async () => { setAgentBusyUntil(freshAgent.id, this.options.host.nowMs() + undecidedMs); });
+          if (undecidedMs <= 0 && getRuntimeConfig().engine.minDecisionIntervalMs <= 0) await this.options.host.sleepWall(1, signal);
           continue;
         }
 
