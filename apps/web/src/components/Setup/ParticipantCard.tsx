@@ -16,10 +16,10 @@ import { internalFixturesEnabled } from '../../services/byok-preflight';
 import { useDryRunStore } from '../../stores/dryRun';
 import { ReasoningControl } from './ReasoningControl';
 
-/** Muted, distinguishable on the night background; none collides with the brass accent. */
+/** Saturated 8-bit hues, distinct on the indigo background; none collides with the gold accent or the alert red. */
 export const PARTICIPANT_COLORS = [
-  { value: '#8fb8de', name: 'Sky' }, { value: '#e39a7a', name: 'Clay' }, { value: '#9fd3a8', name: 'Fern' }, { value: '#c6a0e0', name: 'Lilac' },
-  { value: '#7fd1cf', name: 'Teal' }, { value: '#e58fb0', name: 'Rose' }, { value: '#b7c0cc', name: 'Silver' }, { value: '#d4d08a', name: 'Lichen' },
+  { value: '#5ec8ff', name: 'Sky' }, { value: '#ff8a4c', name: 'Clay' }, { value: '#7ee05a', name: 'Fern' }, { value: '#d58cff', name: 'Lilac' },
+  { value: '#3fe0c8', name: 'Teal' }, { value: '#ff7ab8', name: 'Rose' }, { value: '#e8e8f0', name: 'Silver' }, { value: '#8a9bff', name: 'Cobalt' },
 ] as const;
 
 const BASELINE_LABELS: Record<string, string> = {

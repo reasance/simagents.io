@@ -55,7 +55,7 @@ Provider keys stay in memory by default; encrypted local storage is optional. Re
 
 ## Run A Simulation
 
-The world view shows the map (spoken lines appear as brass arcs from speaker to listeners), the participants with their model and effort, and a feed of what they said and did to each other. Select a participant to see its vitals, private notes and recent decisions.
+The world view shows the map (each participant is a small sprite in its colour; spoken lines appear as dotted gold paths from speaker to listeners, with a speech bubble over the speaker), the participants with their model and effort, and a feed of what they said and did to each other. Select a participant to see its vitals, private notes and recent decisions.
 
 During a run you can:
 

@@ -33,7 +33,7 @@ export function TemporalPanel() {
   // Prepare line chart data for decision latencys
   const durationLineData = [{
     id: 'duration',
-    color: '#cfa65e',
+    color: '#ffc93c',
     points: tickDurations.map((d) => ({
       x: d.tick,
       y: d.duration,
@@ -43,7 +43,7 @@ export function TemporalPanel() {
   // Prepare line chart data for actions per tick
   const actionsLineData = [{
     id: 'actions',
-    color: '#8a96a6',
+    color: '#aea8de',
     points: tickDurations.map((d) => ({
       x: d.tick,
       y: d.actionsExecuted,
@@ -53,7 +53,7 @@ export function TemporalPanel() {
   // Prepare line chart data for events per tick
   const eventsLineData = [{
     id: 'events',
-    color: '#8a96a6',
+    color: '#aea8de',
     points: eventsByTick.map((d) => ({
       x: d.tick,
       y: d.eventCount,
@@ -63,7 +63,7 @@ export function TemporalPanel() {
   // Prepare line chart data for agent count over time
   const agentCountData = [{
     id: 'agents',
-    color: '#8a96a6',
+    color: '#aea8de',
     points: tickDurations.map((d) => ({
       x: d.tick,
       y: d.agentCount,

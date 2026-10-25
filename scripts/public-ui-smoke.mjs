@@ -125,7 +125,7 @@ try {
   await audit('paused');
   const beforeLanguage = await exported();
   const changedLanguage = smokeLanguage === 'en' ? 'it' : 'en';
-  const engraved = value => value.toUpperCase().split('').join(String.fromCharCode(8202));
+  const engraved = value => value.toUpperCase();
   const expected = engraved((changedLanguage === 'it' ? it : en).Forest);
   await activate(page.locator('.simulation-tools:visible > summary'));
   await page.evaluate(() => { window.__drawnProductText = []; });

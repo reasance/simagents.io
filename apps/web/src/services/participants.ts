@@ -32,8 +32,8 @@ export function participantSummary(entry: AgentRosterEntry): string {
 
 /** Participants a first dry run starts with: one model at two efforts and two other providers. */
 export const DRY_RUN_SAMPLES: Array<Pick<AgentRosterEntry, 'name' | 'provider' | 'modelId' | 'reasoningLevel' | 'color'>> = [
-  { name: 'Agent 1', provider: 'claude', modelId: getDefaultModelId('claude'), reasoningLevel: 'low', color: '#8fb8de' },
-  { name: 'Agent 2', provider: 'claude', modelId: getDefaultModelId('claude'), reasoningLevel: 'max', color: '#e39a7a' },
-  { name: 'Agent 3', provider: 'codex', modelId: getDefaultModelId('codex'), color: '#9fd3a8' },
-  { name: 'Agent 4', provider: 'gemini', modelId: getDefaultModelId('gemini'), reasoningLevel: 'low', color: '#c6a0e0' },
+  { name: 'Agent 1', provider: 'claude', modelId: getDefaultModelId('claude'), reasoningLevel: 'low', color: '#5ec8ff' },
+  { name: 'Agent 2', provider: 'claude', modelId: getDefaultModelId('claude'), reasoningLevel: 'max', color: '#ff8a4c' },
+  { name: 'Agent 3', provider: 'codex', modelId: getDefaultModelId('codex'), color: '#7ee05a' },
+  { name: 'Agent 4', provider: 'gemini', modelId: getDefaultModelId('gemini'), reasoningLevel: 'low', color: '#d58cff' },
 ];

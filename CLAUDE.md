@@ -29,7 +29,7 @@ Rules:
 
 ## Interface
 
-The design is "Observatory": dark, map-centred, one brass accent for what is active, selected or spoken. Colours and type are tokens in `apps/web/src/index.css` (`night`, `panel`, `raised`, `rule`, `mist`, `star`, `brass`, `ok`, `alert`; IBM Plex Sans/Mono and Barlow Condensed, self-hosted). Component classes live in `@layer components` so Tailwind utilities can override them. Targets are at least 44 px, everything works by keyboard, and the browser smokes audit WCAG 2.2 AA at 1440, 768 and 390 px.
+The design is "Arcade": the world drawn as an 8-bit game, watched from outside. A fixed palette on deep indigo, square notched frames (box-shadow, never `clip-path`, so focus rings stay visible) and one gold accent for what is active, selected or spoken. Colours and type are tokens in `apps/web/src/index.css` (`night`, `panel`, `raised`, `rule`, `mist`, `star`, `brass` (the gold), `ok`, `alert`); fonts are self-hosted: Press Start 2P for titles and labels, Pixelify Sans for text with digits taken from VT323 (Pixelify's 5 reads as an S), and VT323 for readouts and code. The map, replay and legend draw from the sprites and pre-rendered terrain in `components/Canvas/pixel-art.ts`. Component classes live in `@layer components` so Tailwind utilities can override them. Targets are at least 44 px, everything works by keyboard, and the browser smokes audit WCAG 2.2 AA at 1440, 768 and 390 px.
 
 **Dry run** (`engine/llm/dry-run-provider.ts`) replaces every model participant with scripted local replies: the real prompt is built, the reply waits a wall-clock delay that grows with effort, and nothing is sent or billed. The worker receives no keys or connections, the saved world carries `configuration.dryRun`, and a world resumes only in the mode it was started in. It exists to exercise the interface; never present its worlds as model results.
 
@@ -42,7 +42,7 @@ apps/web/
   src/stores/             # Zustand state
   src/components/         # UI: TopBar, Setup (keys → participants → limits), World (participants, detail, feed),
                           # Canvas/WorldMap, Analytics (Relations page), SocialGraph, ConfigPanel (advanced settings)
-  src/index.css           # Observatory design tokens and component classes
+  src/index.css           # Arcade design tokens and component classes
 apps/relay/               # Official provider relay (Cloudflare Worker, text protocols only)
 apps/admission/           # Relay access admission (Cloudflare Worker)
 packages/engine/

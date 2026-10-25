@@ -62,7 +62,8 @@ export async function setupStep(page, label) {
     await rail.getByRole('button', { name: new RegExp(productText(label).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }).click();
   } else {
     for (let n = 0; n < SETUP_STEPS.length; n++) {
-      const heading = (await dialog.locator('h2').first().innerText()).trim();
+      // textContent, not innerText: the heading is uppercased by CSS only.
+      const heading = (await dialog.locator('h2').first().textContent()).trim();
       const index = SETUP_STEPS.findIndex(step => productText(step) === heading);
       if (index === target) break;
       await dialog.getByRole('button', { name: productText(index < target ? 'Continue' : 'Back'), exact: true }).click();

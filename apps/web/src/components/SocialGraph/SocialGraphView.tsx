@@ -23,10 +23,10 @@ import {
 } from '../../stores/visualization';
 
 const EDGE_COLORS: Record<SocialEdgeType, string> = {
-  speech: '#cfa65e',
-  gift: '#7fb59a',
-  swap: '#8fb8de',
-  force: '#e07a6a',
+  speech: '#ffc93c',
+  gift: '#5fe08a',
+  swap: '#5ec8ff',
+  force: '#ff6b6b',
 };
 
 // Node interface for D3
@@ -291,19 +291,21 @@ export function SocialGraphView({ controls }: { controls?: (close: () => void) =
 
     // Add elements to new nodes
     nodeEnter
-      .append('circle')
-      .attr('r', 12)
+      // Square nodes: the graph shares the map's pixel vocabulary.
+      .append('rect')
+      .attr('class', 'node-body')
+      .attr('x', -11).attr('y', -11).attr('width', 22).attr('height', 22)
       .attr('fill', (d) => d.color)
-      .attr('stroke', '#0b0f14')
+      .attr('stroke', '#0e0c1f')
       .attr('stroke-width', 2);
 
     nodeEnter
       .append('text')
       .attr('text-anchor', 'middle')
       .attr('dy', -18)
-      .attr('fill', '#e4e8ee')
-      .attr('font-size', '12px')
-      .attr('font-family', "'IBM Plex Sans', sans-serif")
+      .attr('fill', '#f5f2ff')
+      .attr('font-size', '8px')
+      .attr('font-family', "'Press Start 2P', monospace")
       .text((d) => d.name ?? d.llmType);
 
     nodeEnter
@@ -313,7 +315,7 @@ export function SocialGraphView({ controls }: { controls?: (close: () => void) =
       .attr('y', 18)
       .attr('width', 24)
       .attr('height', 3)
-      .attr('fill', '#27313e')
+      .attr('fill', '#433a7a')
       .attr('rx', 1);
 
     nodeEnter
@@ -332,7 +334,7 @@ export function SocialGraphView({ controls }: { controls?: (close: () => void) =
     // Update health bars for all nodes
     nodeMerge.select('.health-bar')
       .attr('width', (d) => (d.health / 100) * 24)
-      .attr('fill', (d) => (d.health > 25 ? '#8a96a6' : '#e07a6a'));
+      .attr('fill', (d) => (d.health > 25 ? '#5fe08a' : '#ff6b6b'));
 
     // Update positions on simulation tick
     simulation.on('tick', () => {
@@ -355,8 +357,8 @@ export function SocialGraphView({ controls }: { controls?: (close: () => void) =
 
     gRef.current.select('.nodes')
       .selectAll<SVGGElement, GraphNode>('g')
-      .select('circle')
-      .attr('stroke', (d) => (d.id === selectedAgentId ? '#cfa65e' : '#0b0f14'))
+      .select('.node-body')
+      .attr('stroke', (d) => (d.id === selectedAgentId ? '#ffc93c' : '#0e0c1f'))
       .attr('stroke-width', (d) => (d.id === selectedAgentId ? 3 : 2));
   }, [selectedAgentId, visible]);
 

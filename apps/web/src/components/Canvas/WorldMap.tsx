@@ -3,24 +3,31 @@ import { translate, translateLabel, useLocale } from '../../i18n';
 import { useAgents, useNotableEvents, useResourceSpawns, useShelters, useWorldStore, type Agent, type WorldEvent } from '../../stores/world';
 import { useHeatmapSettings, useVisualizationStore, type HeatmapMetric } from '../../stores/visualization';
 import { CanvasPanControls } from './CanvasPanControls';
+import { BIOMES, FIELD, GRID, HEAT_RAMP, INK, RESOURCE_COLORS, TILE, drawSprite, pixelLine, terrainCanvas, type SpriteName } from './pixel-art';
 
-const TILE = 12;
-const GRID = 100;
-const FIELD = TILE * GRID;
-const AGENT_RADIUS = 5;
 const RULER = 22;
 const MIN_ZOOM = 0.5, MAX_ZOOM = 3;
 /** How long a spoken line stays drawn between speaker and listeners. */
 const ARC_MS = 8000;
-
-const INK = { night: '#0b0f14', field: '#0f141b', rule: '#27313e', mist: '#8a96a6', star: '#e4e8ee', brass: '#cfa65e', alert: '#e07a6a' };
-const RESOURCE_COLORS: Record<string, string> = { food: '#6f9e7c', energy: '#9a9460', material: '#8a7563' };
-const BIOMES: Array<{ key: 'Forest' | 'Tundra' | 'Desert' | 'Plains'; tint: string; x: number; y: number }> = [
-  { key: 'Forest', tint: '#9fd3a8', x: 0, y: 0 }, { key: 'Tundra', tint: '#8fb8de', x: 50, y: 0 },
-  { key: 'Desert', tint: '#e39a7a', x: 0, y: 50 }, { key: 'Plains', tint: '#d4d08a', x: 50, y: 50 },
-];
-const HEAT_RAMP = ['#2a2416', '#5c4a26', '#8f7440', '#cfa65e', '#ecd5a3'];
+const LABEL_FONT = `'Press Start 2P', monospace`;
 const EXCHANGE = new Set(['agent_gave', 'agent_traded']), FORCE = new Set(['agent_harmed', 'agent_stole']);
+
+/** Gold corner brackets around a cell: the selection cursor. */
+function brackets(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, px: number) {
+  const arm = size / 3, pad = px * 1.5;
+  ctx.fillStyle = INK.gold;
+  for (const [cx, cy, sx, sy] of [[x - pad, y - pad, 1, 1], [x + size + pad, y - pad, -1, 1], [x - pad, y + size + pad, 1, -1], [x + size + pad, y + size + pad, -1, -1]]) {
+    ctx.fillRect(sx > 0 ? cx : cx - arm, sy > 0 ? cy : cy - px, arm, px);
+    ctx.fillRect(sx > 0 ? cx : cx - px, sy > 0 ? cy : cy - arm, px, arm);
+  }
+}
+
+/** A legend swatch drawn from the same sprite the map uses. */
+function SpriteIcon({ name }: { name: SpriteName }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => { const ctx = ref.current?.getContext('2d'); if (ctx) { ctx.clearRect(0, 0, 16, 16); drawSprite(ctx, name, 0, 0, 16); } }, [name]);
+  return <canvas ref={ref} width={16} height={16} className="sprite-icon" aria-hidden="true" />;
+}
 
 function eventPosition(event: WorldEvent, byId: Map<string, Agent>): { x: number; y: number } | undefined {
   const p = event.payload ?? {};
@@ -114,6 +121,7 @@ export function WorldMap({ showTools = true }: { showTools?: boolean }) {
     if (canvas.width !== Math.round(width * dpr)) canvas.width = Math.round(width * dpr);
     if (canvas.height !== Math.round(height * dpr)) canvas.height = Math.round(height * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = INK.night;
     ctx.fillRect(0, 0, width, height);
 
@@ -122,58 +130,40 @@ export function WorldMap({ showTools = true }: { showTools?: boolean }) {
     ctx.translate(ox, oy);
     ctx.scale(zoom, zoom);
 
-    ctx.fillStyle = INK.field;
-    ctx.fillRect(0, 0, FIELD, FIELD);
-    for (const biome of BIOMES) {
-      ctx.globalAlpha = 0.06; ctx.fillStyle = biome.tint;
-      ctx.fillRect(biome.x * TILE, biome.y * TILE, 50 * TILE, 50 * TILE);
-      ctx.globalAlpha = 0.28; ctx.fillStyle = biome.tint;
-      ctx.font = `600 ${13 / zoom}px 'Barlow Condensed', sans-serif`;
-      ctx.textAlign = 'left';
-      ctx.fillText(translateLabel(biome.key).toUpperCase().split('').join(String.fromCharCode(8202)), biome.x * TILE + 10 / zoom, biome.y * TILE + 22 / zoom);
-    }
-    ctx.globalAlpha = 1;
+    // A chunky two-tone frame, then the pre-rendered ground.
+    const frame = 6 / zoom;
+    ctx.fillStyle = INK.ruleStrong; ctx.fillRect(-frame, -frame, FIELD + frame * 2, FIELD + frame * 2);
+    ctx.fillStyle = INK.night; ctx.fillRect(-frame / 2, -frame / 2, FIELD + frame, FIELD + frame);
+    ctx.drawImage(terrainCanvas(), 0, 0);
+    const text = (value: string, x: number, y: number, px: number, color: string) => {
+      ctx.font = `${px / zoom}px ${LABEL_FONT}`;
+      ctx.fillStyle = INK.night; ctx.fillText(value, x + 1 / zoom, y + 1 / zoom);
+      ctx.fillStyle = color; ctx.fillText(value, x, y);
+    };
+    ctx.textAlign = 'left';
+    for (const biome of BIOMES) text(translateLabel(biome.key).toUpperCase(), biome.x * TILE + 8 / zoom, biome.y * TILE + 16 / zoom, 8, biome.label);
 
     if (heat) {
       for (let y = 0; y < GRID; y++) for (let x = 0; x < GRID; x++) {
         const value = heat[y * GRID + x];
         if (value < 0.05) continue;
-        ctx.globalAlpha = opacity * Math.min(1, value + 0.15);
+        ctx.globalAlpha = opacity * Math.min(1, value + 0.2);
         ctx.fillStyle = HEAT_RAMP[Math.min(HEAT_RAMP.length - 1, Math.floor(value * HEAT_RAMP.length))];
         ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
       }
       ctx.globalAlpha = 1;
     }
 
-    ctx.lineWidth = 1 / zoom;
-    if (zoom >= 0.8) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.025)';
-      ctx.beginPath();
-      for (let i = 0; i <= GRID; i++) { if (i % 10) { ctx.moveTo(i * TILE, 0); ctx.lineTo(i * TILE, FIELD); ctx.moveTo(0, i * TILE); ctx.lineTo(FIELD, i * TILE); } }
-      ctx.stroke();
-    }
-    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-    ctx.beginPath();
-    for (let i = 0; i <= GRID; i += 10) { ctx.moveTo(i * TILE, 0); ctx.lineTo(i * TILE, FIELD); ctx.moveTo(0, i * TILE); ctx.lineTo(FIELD, i * TILE); }
-    ctx.stroke();
-    ctx.strokeStyle = INK.rule;
-    ctx.strokeRect(0, 0, FIELD, FIELD);
-
-    for (const shelter of shelters) {
-      ctx.strokeStyle = INK.mist; ctx.lineWidth = 1.2 / zoom;
-      ctx.strokeRect(shelter.x * TILE + 2, shelter.y * TILE + 2, TILE - 4, TILE - 4);
-    }
+    for (const shelter of shelters) drawSprite(ctx, 'shelter', shelter.x * TILE, shelter.y * TILE, TILE);
     for (const spawn of resources) {
       const fill = Math.max(0, Math.min(1, spawn.currentAmount / Math.max(1, spawn.maxAmount)));
-      const side = (TILE - 4) * Math.max(0.35, fill);
-      ctx.globalAlpha = 0.35 + 0.65 * fill;
-      ctx.fillStyle = RESOURCE_COLORS[spawn.resourceType] ?? INK.mist;
-      ctx.fillRect(spawn.x * TILE + (TILE - side) / 2, spawn.y * TILE + (TILE - side) / 2, side, side);
+      ctx.globalAlpha = 0.3 + 0.7 * fill;
+      drawSprite(ctx, (spawn.resourceType in RESOURCE_COLORS ? spawn.resourceType : 'material') as SpriteName, spawn.x * TILE, spawn.y * TILE, TILE);
       ctx.globalAlpha = 1;
-      if (spawn.id === selectedResourceId) { ctx.strokeStyle = INK.brass; ctx.lineWidth = 2 / zoom; ctx.strokeRect(spawn.x * TILE - 1, spawn.y * TILE - 1, TILE + 2, TILE + 2); }
+      if (spawn.id === selectedResourceId) brackets(ctx, spawn.x * TILE, spawn.y * TILE, TILE, 2 / zoom);
     }
 
-    // Spoken lines: brass arcs from the speaker to everyone who heard, fading out.
+    // Spoken lines: dotted gold paths from the speaker to everyone who heard, with a speech bubble, fading out.
     const center = (x: number, y: number) => [x * TILE + TILE / 2, y * TILE + TILE / 2] as const;
     for (const event of arcs) {
       const age = Math.min(1, Math.max(0, (now - event.timestamp) / ARC_MS));
@@ -181,74 +171,63 @@ export function WorldMap({ showTools = true }: { showTools?: boolean }) {
       const [sx, sy] = center(from.x, from.y);
       const listeners = Array.isArray(event.payload.listenerIds) ? event.payload.listenerIds as string[] : [];
       const addressed = typeof event.payload.to === 'string' ? event.payload.to : undefined;
-      ctx.strokeStyle = INK.brass;
+      ctx.fillStyle = INK.gold;
       for (const id of listeners) {
         const listener = byId.get(id); if (!listener) continue;
         const [tx, ty] = center(listener.x, listener.y);
-        const mx = (sx + tx) / 2, my = (sy + ty) / 2, dx = tx - sx, dy = ty - sy, len = Math.hypot(dx, dy) || 1;
-        const bend = Math.min(40, len * 0.25);
-        ctx.globalAlpha = (1 - age) * (id === addressed ? 0.95 : 0.55);
-        ctx.lineWidth = (id === addressed ? 2 : 1.2) / zoom;
-        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.quadraticCurveTo(mx - (dy / len) * bend, my + (dx / len) * bend, tx, ty); ctx.stroke();
+        ctx.globalAlpha = (1 - age) * (id === addressed ? 1 : 0.6);
+        pixelLine(ctx, sx, sy, tx, ty, Math.max(2, (id === addressed ? 3 : 2) / zoom));
       }
-      ctx.globalAlpha = (1 - age) * 0.8; ctx.lineWidth = 1 / zoom;
-      ctx.beginPath(); ctx.arc(sx, sy, AGENT_RADIUS + 4 + age * 10, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = 1 - age;
+      drawSprite(ctx, 'bubble', sx + 2, sy - TILE * 1.6, TILE);
     }
     ctx.globalAlpha = 1;
 
-    const radius = Math.max(AGENT_RADIUS, 4.5 / zoom);
+    // Sprites first, names after, so no sprite covers a neighbour's name.
+    const labels: Array<() => void> = [];
     const stacked = new Map<string, Agent[]>();
     for (const agent of agents) { const key = `${agent.x},${agent.y}`; stacked.set(key, [...(stacked.get(key) ?? []), agent]); }
     for (const [, group] of stacked) group.forEach((agent, index) => {
-      const angle = (index / group.length) * Math.PI * 2;
-      const offset = group.length > 1 ? radius * 0.9 : 0;
-      const [cx, cy] = center(agent.x, agent.y);
-      const x = cx + Math.cos(angle) * offset, y = cy + Math.sin(angle) * offset;
+      // Agents sharing a cell fan out a little so each stays visible and clickable.
+      const offset = group.length > 1 ? (index - (group.length - 1) / 2) * 6 : 0;
+      const x = agent.x * TILE + offset, y = agent.y * TILE - Math.abs(offset) / 3;
       const dead = agent.state === 'dead' || agent.health <= 0;
-      if (dead) { ctx.strokeStyle = INK.mist; ctx.lineWidth = 1.2 / zoom; ctx.beginPath(); ctx.arc(x, y, radius - 1 / zoom, 0, Math.PI * 2); ctx.stroke(); }
-      else {
-        ctx.fillStyle = INK.night; ctx.beginPath(); ctx.arc(x, y, radius + 1.5 / zoom, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = agent.color; ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.fill();
-        if (agent.health < 30) { ctx.strokeStyle = INK.alert; ctx.lineWidth = 1.5 / zoom; ctx.beginPath(); ctx.arc(x, y, radius + 2 / zoom, 0, Math.PI * 2); ctx.stroke(); }
-      }
+      drawSprite(ctx, dead ? 'grave' : 'agent', x, y, TILE, agent.color);
+      if (!dead && agent.health < 30) drawSprite(ctx, 'heart', x + TILE * 0.55, y - TILE * 0.55, TILE * 0.75);
       const selected = agent.id === selectedAgentId;
-      if (selected) { ctx.strokeStyle = INK.brass; ctx.lineWidth = 2 / zoom; ctx.beginPath(); ctx.arc(x, y, radius + 4 / zoom, 0, Math.PI * 2); ctx.stroke(); }
-      if (selected || zoom >= 0.9 || agents.length <= 12) {
-        ctx.font = `500 ${11 / zoom}px 'IBM Plex Sans', sans-serif`; ctx.textAlign = 'left';
-        ctx.fillStyle = selected ? INK.star : INK.mist;
-        ctx.fillText(agent.name ?? agent.llmType, x + radius + 5 / zoom, y + 4 / zoom);
-      }
+      if (selected) brackets(ctx, x, y, TILE, 2 / zoom);
+      if (selected || zoom >= 0.9 || agents.length <= 12) labels.push(() => text(agent.name ?? agent.llmType, x + TILE + 3 / zoom, y + TILE / 2 + 4 / zoom, 8, selected ? INK.gold : INK.star));
     });
+    for (const label of labels) label();
     ctx.restore();
 
     // Rulers: graduated edges fixed to the view, reading world coordinates like an instrument scale.
-    ctx.fillStyle = 'rgba(11,15,20,0.92)';
+    ctx.fillStyle = INK.night;
     ctx.fillRect(0, 0, width, RULER); ctx.fillRect(0, 0, RULER, height);
     ctx.strokeStyle = INK.rule; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(RULER, RULER - 0.5); ctx.lineTo(width, RULER - 0.5); ctx.moveTo(RULER - 0.5, RULER); ctx.lineTo(RULER - 0.5, height); ctx.stroke();
     const cell = TILE * zoom;
-    ctx.font = `400 10px 'IBM Plex Mono', monospace`; ctx.fillStyle = INK.mist;
-    ctx.beginPath();
+    ctx.font = `8px ${LABEL_FONT}`; ctx.fillStyle = INK.mist;
+    // Square ticks, two pixels wide, like a scale drawn on a tile sheet.
     for (let i = 0; i <= GRID; i++) {
       const major = i % 10 === 0, mid = i % 5 === 0;
       if (!major && !mid && cell < 6) continue;
-      const length = major ? 9 : mid ? 6 : 3;
-      const x = ox + i * cell, y = oy + i * cell;
-      if (x > RULER && x < width) { ctx.moveTo(x + 0.5, RULER); ctx.lineTo(x + 0.5, RULER - length); }
-      if (y > RULER && y < height) { ctx.moveTo(RULER, y + 0.5); ctx.lineTo(RULER - length, y + 0.5); }
+      const length = major ? 8 : mid ? 6 : 2;
+      const x = Math.round(ox + i * cell), y = Math.round(oy + i * cell);
+      if (x > RULER && x < width) ctx.fillRect(x - 1, RULER - length, 2, length);
+      if (y > RULER && y < height) ctx.fillRect(RULER - length, y - 1, length, 2);
     }
-    ctx.strokeStyle = INK.mist; ctx.stroke();
     ctx.textAlign = 'left';
     for (let i = 0; i <= GRID; i += 10) {
       const x = ox + i * cell, y = oy + i * cell;
-      if (x > RULER + 2 && x < width - 16) ctx.fillText(String(i), x + 3, 10);
-      if (y > RULER + 10 && y < height) { ctx.save(); ctx.translate(10, y - 3); ctx.rotate(-Math.PI / 2); ctx.fillText(String(i), 0, 0); ctx.restore(); }
+      if (x > RULER + 2 && x < width - 24) ctx.fillText(String(i), x + 3, 11);
+      if (y > RULER + 10 && y < height) { ctx.save(); ctx.translate(11, y - 3); ctx.rotate(-Math.PI / 2); ctx.fillText(String(i), 0, 0); ctx.restore(); }
     }
     if (selectedAgentId) {
       const agent = byId.get(selectedAgentId);
       if (agent) {
         const x = ox + (agent.x + 0.5) * cell, y = oy + (agent.y + 0.5) * cell;
-        ctx.fillStyle = INK.brass;
+        ctx.fillStyle = INK.gold;
         if (x > RULER && x < width) { ctx.beginPath(); ctx.moveTo(x, RULER); ctx.lineTo(x - 4, RULER - 6); ctx.lineTo(x + 4, RULER - 6); ctx.fill(); }
         if (y > RULER && y < height) { ctx.beginPath(); ctx.moveTo(RULER, y); ctx.lineTo(RULER - 6, y - 4); ctx.lineTo(RULER - 6, y + 4); ctx.fill(); }
       }
@@ -268,7 +247,7 @@ export function WorldMap({ showTools = true }: { showTools?: boolean }) {
   const pick = (clientX: number, clientY: number, slack: number) => {
     const rect = canvasRef.current!.getBoundingClientRect();
     const wx = (clientX - rect.left - size.width / 2 - camera.x) / zoom, wy = (clientY - rect.top - size.height / 2 - camera.y) / zoom;
-    const agent = agents.find(a => Math.hypot(wx - (a.x * TILE + TILE / 2), wy - (a.y * TILE + TILE / 2)) < Math.max(AGENT_RADIUS, 4.5 / zoom) + slack / zoom);
+    const agent = agents.find(a => Math.hypot(wx - (a.x * TILE + TILE / 2), wy - (a.y * TILE + TILE / 2)) < TILE / 2 + slack / zoom);
     if (agent) { selectAgent(agent.id === selectedAgentId ? null : agent.id); return; }
     const resource = resources.find(r => wx >= r.x * TILE - 2 && wx < r.x * TILE + TILE + 2 && wy >= r.y * TILE - 2 && wy < r.y * TILE + TILE + 2);
     if (resource) { selectResource(resource.id === selectedResourceId ? null : resource.id); return; }
@@ -311,11 +290,11 @@ export function WorldMap({ showTools = true }: { showTools?: boolean }) {
 
     {showTools && <MapTools />}
     {showTools && <><div className="map-legend" role="group" aria-label={translate('Map legend')}>
-      <span><i style={{ background: RESOURCE_COLORS.food }} />{translate('Food')}</span>
-      <span><i style={{ background: RESOURCE_COLORS.energy }} />{translate('Energy')}</span>
-      <span><i style={{ background: RESOURCE_COLORS.material }} />{translate('Material')}</span>
-      <span><i style={{ border: `1px solid ${INK.mist}` }} />{translate('Shelter')}</span>
-      <span><i style={{ background: INK.brass, height: 2, width: 14 }} />{translate('Speech')}</span>
+      <span><SpriteIcon name="food" />{translate('Food')}</span>
+      <span><SpriteIcon name="energy" />{translate('Energy')}</span>
+      <span><SpriteIcon name="material" />{translate('Material')}</span>
+      <span><SpriteIcon name="shelter" />{translate('Shelter')}</span>
+      <span><SpriteIcon name="bubble" />{translate('Speech')}</span>
     </div>
     <div className="map-zoom" role="group" aria-label={translate('Map view')}>
       <CanvasPanControls onKeyDown={handleKey} reset={resetCamera} move={(x, y) => setCamera(c => ({ x: c.x - x, y: c.y - y }))} />

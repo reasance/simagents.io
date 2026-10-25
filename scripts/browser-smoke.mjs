@@ -132,7 +132,7 @@ async function clickStart(page, choice = 'new') {
 
 async function clickPause(page) {
   await page.getByRole('button', { name: /Pause/ }).click();
-  await page.waitForFunction(() => document.body.innerText.includes('Paused'));
+  await page.waitForFunction(() => document.body.textContent.includes('Paused'));
   await waitForSavedWorld(page);
 }
 
@@ -195,7 +195,7 @@ async function verifyLocalAnalytics(page) {
   assertSmoke(relations.section && relations.rows === baselineRoster.length && relations.everyAgent, 'relations panel did not list every agent', relations);
 
   await openSimulationTool(page, 'World');
-  await page.waitForFunction(() => document.body.innerText.includes('Paused'));
+  await page.waitForFunction(() => document.body.textContent.includes('Paused'));
 }
 
 async function verifyLocalReplay(page) {
@@ -214,7 +214,7 @@ async function verifyLocalReplay(page) {
   assertSmoke(visible.replay && visible.events, 'local replay page or saved events did not render');
   assertSmoke(visible.frameStored, 'local replay frames were not persisted');
   await page.getByRole('button', { name: /Exit Replay/i }).click();
-  await page.waitForFunction(() => document.body.innerText.includes('Paused'));
+  await page.waitForFunction(() => document.body.textContent.includes('Paused'));
 }
 
 async function verifyPromptEditorAndInspector(page) {
@@ -249,7 +249,7 @@ async function verifyPromptEditorAndInspector(page) {
   assertSmoke(customPromptStored, 'custom prompt was not persisted locally');
   assertSmoke(inspector.active || inspector.noData, 'local prompt inspector did not render');
   await openSimulationTool(page, 'World');
-  await page.waitForFunction(() => document.body.innerText.includes('Paused'));
+  await page.waitForFunction(() => document.body.textContent.includes('Paused'));
 }
 
 async function verifyBrowserExperiment(page) {
@@ -279,7 +279,7 @@ async function verifyBrowserExperiment(page) {
   assertSmoke(experiment.hasClient, 'dev engine client bridge is unavailable');
   assertSmoke(experiment.status === 'completed', 'browser experiment did not complete', experiment);
   assertSmoke(experiment.stored && experiment.csvHeader && experiment.jsonHasRun, 'browser experiment export/storage failed', experiment);
-  await page.waitForFunction(() => document.body.innerText.includes('Paused'));
+  await page.waitForFunction(() => document.body.textContent.includes('Paused'));
 }
 
 async function runBaselinePersistence(browser) {
@@ -349,7 +349,7 @@ async function runBaselinePersistence(browser) {
 
   page.once('dialog', (dialog) => dialog.accept());
   await openSimulationTool(page, 'Reset');
-  await page.waitForFunction(() => document.body.innerText.includes('Ready'));
+  await page.waitForFunction(() => document.body.textContent.includes('Ready'));
 
   await page.locator('input[type="file"]').setInputFiles({
     name: 'simagents-world-smoke.json',

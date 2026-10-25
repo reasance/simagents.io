@@ -1,5 +1,6 @@
 import { afterEach, expect, test } from 'bun:test';
 import { formatSimTime } from '../utils/format';
+import { SPRITES } from '../components/Canvas/pixel-art';
 import { describeNotable, nameLookup } from '../components/World/describe';
 import { useWorldStore, type Agent, type WorldEvent } from '../stores/world';
 
@@ -32,4 +33,14 @@ test('the store keeps speech and per-agent decisions beyond the short raw event 
   expect(state.events.some(e => e.id === 'spoken')).toBe(false);
   expect(state.notable.map(e => e.id)).toEqual(['spoken']);
   expect(state.decisions.a.map(e => e.id)).toEqual(['decision']);
+});
+
+test('every map sprite is eight by eight and only uses colours it defines', () => {
+  for (const [name, sprite] of Object.entries(SPRITES)) {
+    expect(sprite.rows.length, name).toBe(8);
+    for (const row of sprite.rows) {
+      expect(row.length, `${name}: ${row}`).toBe(8);
+      for (const cell of row) expect(cell === '.' || cell === 'c' || cell in sprite.colors, `${name} uses ${cell}`).toBe(true);
+    }
+  }
 });

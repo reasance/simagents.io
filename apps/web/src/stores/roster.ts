@@ -32,7 +32,7 @@ function canUseLocalStorage(): boolean {
 }
 
 function cloneDefaultRoster(): AgentRosterEntry[] {
-  const defaults = internalFixturesEnabled() ? DEFAULT_AGENT_ROSTER : [{ name: 'Agent 1', provider: 'claude' as const, modelId: getDefaultModelId('claude'), color: '#8fb8de' }];
+  const defaults = internalFixturesEnabled() ? DEFAULT_AGENT_ROSTER : [{ name: 'Agent 1', provider: 'claude' as const, modelId: getDefaultModelId('claude'), color: '#5ec8ff' }];
   return defaults.map((entry) => ({ ...entry, id: 'id' in entry && entry.id ? entry.id : `legacy:${entry.name}` }));
 }
 

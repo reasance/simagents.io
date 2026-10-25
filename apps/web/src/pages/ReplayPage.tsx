@@ -1,4 +1,5 @@
 import { formatSimTime } from '../utils/format';
+import { INK, RESOURCE_COLORS, drawSprite, terrainCanvas, type SpriteName } from '../components/Canvas/pixel-art';
 import { formatActionLabel } from '../i18n';
 import { formatError } from '../i18n/errors';
 import { translateLabel, useLocale, translate } from '../i18n';
@@ -258,77 +259,34 @@ function ReplayCanvas() {
     const gridSize = 100;
     const cellSize = Math.min(width, height) / gridSize;
 
-    // Clear
-    ctx.fillStyle = '#0f141b';
+    // The same ground and sprites as the live map, scaled to the canvas.
+    ctx.imageSmoothingEnabled = false;
+    ctx.fillStyle = INK.night;
     ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(terrainCanvas(), 0, 0, cellSize * gridSize, cellSize * gridSize);
+    const sprite = Math.max(cellSize, 6);
+    const at = (v: number) => v * cellSize + (cellSize - sprite) / 2;
 
-    // Draw grid lines (faint)
-    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
-    ctx.lineWidth = 0.5;
-    for (let i = 0; i <= gridSize; i++) {
-      ctx.beginPath();
-      ctx.moveTo(i * cellSize, 0);
-      ctx.lineTo(i * cellSize, height);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(0, i * cellSize);
-      ctx.lineTo(width, i * cellSize);
-      ctx.stroke();
-    }
-
-    // Draw resource spawns
+    for (const shelter of snapshot.shelters) drawSprite(ctx, 'shelter', at(shelter.x), at(shelter.y), sprite);
     for (const spawn of snapshot.resourceSpawns) {
-      const x = spawn.x * cellSize + cellSize / 2;
-      const y = spawn.y * cellSize + cellSize / 2;
-      const fillPercent = spawn.currentAmount / spawn.maxAmount;
-
-      let color = '#6f9e7c';
-      if (spawn.resourceType === 'energy') color = '#9a9460';
-      if (spawn.resourceType === 'material') color = '#8a7563';
-
-      ctx.beginPath();
-      ctx.arc(x, y, cellSize * 0.4, 0, Math.PI * 2);
-      ctx.fillStyle = color;
-      ctx.globalAlpha = 0.3 + fillPercent * 0.7;
-      ctx.fill();
+      ctx.globalAlpha = 0.3 + 0.7 * Math.max(0, Math.min(1, spawn.currentAmount / Math.max(1, spawn.maxAmount)));
+      drawSprite(ctx, (spawn.resourceType in RESOURCE_COLORS ? spawn.resourceType : 'material') as SpriteName, at(spawn.x), at(spawn.y), sprite);
       ctx.globalAlpha = 1;
     }
 
-    // Draw shelters
-    for (const shelter of snapshot.shelters) {
-      const x = shelter.x * cellSize;
-      const y = shelter.y * cellSize;
-
-      ctx.strokeStyle = '#8a96a6';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(x + 1, y + 1, cellSize - 2, cellSize - 2);
-    }
-
-    // Draw agents
     for (const agent of snapshot.agents) {
-      const x = agent.x * cellSize + cellSize / 2;
-      const y = agent.y * cellSize + cellSize / 2;
-      const isSelected = agent.id === selectedAgentId;
-
-      // Agent circle
-      ctx.beginPath();
-      ctx.arc(x, y, cellSize * 0.35, 0, Math.PI * 2);
-      ctx.fillStyle = (agent as { color?: string }).color ?? '#b7c0cc';
-      ctx.fill();
-
-      // Selection ring
-      if (isSelected) {
-        ctx.beginPath();
-        ctx.arc(x, y, cellSize * 0.45, 0, Math.PI * 2);
-        ctx.strokeStyle = '#cfa65e';
+      const x = at(agent.x), y = at(agent.y);
+      const dead = agent.health <= 0;
+      drawSprite(ctx, dead ? 'grave' : 'agent', x, y, sprite, (agent as { color?: string }).color ?? INK.star);
+      if (agent.id === selectedAgentId) {
+        ctx.strokeStyle = INK.gold;
         ctx.lineWidth = 2;
-        ctx.stroke();
+        ctx.strokeRect(x - 2, y - 2, sprite + 4, sprite + 4);
       }
-
-      // Health bar
-      const healthPercent = agent.health / 100;
-      ctx.fillStyle = healthPercent > 0.25 ? '#8a96a6' : '#e07a6a';
-      ctx.fillRect(x - cellSize * 0.3, y + cellSize * 0.4, cellSize * 0.6 * healthPercent, 3);
+      // Health as a segmented bar under the sprite.
+      const healthPercent = Math.max(0, Math.min(1, agent.health / 100));
+      ctx.fillStyle = healthPercent > 0.25 ? INK.ok : INK.alert;
+      ctx.fillRect(x, y + sprite + 1, Math.round(sprite * healthPercent), 2);
     }
   }, [snapshot, selectedAgentId]);
 
@@ -411,20 +369,6 @@ function ReplayEntitySelector() {
   </label>;
 }
 
-function getLLMColor(llmType: string): string {
-  const colors: Record<string, string> = {
-    claude: '#ff6b35',
-    gemini: '#4285f4',
-    codex: '#10a37f',
-    deepseek: '#00d4aa',
-    qwen: '#7c3aed',
-    glm: '#f59e0b',
-    grok: '#1da1f2',
-    external: '#ec4899',
-  };
-  return colors[llmType] || '#6b7280';
-}
-
 // =============================================================================
 // Event Timeline
 // =============================================================================
@@ -491,7 +435,7 @@ function AgentStatePanel() {
         <div className="flex items-center gap-2">
           <div
             className="w-4 h-4 rounded-full"
-            style={{ backgroundColor: getLLMColor(agent.llmType) }}
+            style={{ backgroundColor: (agent as { color?: string }).color ?? INK.star }}
           />
           <h3 className="font-semibold text-city-text">{agent.name ?? agent.llmType}</h3>
         </div>
