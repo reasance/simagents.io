@@ -1,93 +1,85 @@
 # SimAgents Roadmap
 
-> Last updated: 2026-07-07
+> Last updated: 2026-10-25
 
 ## Current Status
 
-SimAgents is a **browser-only** multi-agent simulation. There is no backend:
+SimAgents is a **browser-only testbed for emergent relations between AI models**:
 
-- Vite SPA starts without a server.
-- The simulation engine runs entirely in a Web Worker.
-- Users configure a local roster and bring their own API keys (BYOK).
-- World state persists through versioned `localStorage` snapshots plus a bounded event ring.
-- An optional user-configured CORS proxy supports providers that do not allow direct browser calls.
+- The user brings provider keys and configures participants: a model plus a reasoning
+  effort. The same model can join several times at different efforts.
+- The catalog lists the current models of Anthropic, OpenAI, Google, xAI, DeepSeek,
+  Alibaba (Qwen), Z.ai (GLM), Mistral, MiniMax and Moonshot (Kimi), each with the effort
+  levels its vendor documents, plus the decision models Jev (TypeSafe AI) and
+  Sage (Levanto Labs). Every entry cites its source and verification date.
+- Agents live in a shared world inside a Web Worker and must survive: hunger, energy,
+  health, resources, shelters, seasons and an optional currency.
+- There is no global tick. Each agent decides at its own pace while simulated time keeps
+  passing, so provider latency and effort affect survival. Speed is part of the evaluation.
+- Agents perceive only what is within sight, hear only what is said within earshot, and
+  can speak freely to whoever is near. They are anonymous: prompts never name a model.
+- Nothing tells agents to cooperate, trade or compete. The prompt describes physics and
+  lists physical actions alphabetically; economic mechanics exist but are not suggested.
+- Observer-only metrics (Analytics → Relations) measure speech, replies, gifts, force,
+  shared conventions and survival per model and effort, with CSV/JSON exports.
 
-The former server platform (Fastify, PostgreSQL, Redis, external-agent APIs) has been
-**removed** from the repository. There is no `apps/server`, no `VITE_ENGINE_MODE`, and no
-remote engine path. See `docs/browser-mode-plan.md` for the authoritative architecture.
+World state persists in IndexedDB (shared 50 MiB budget); preferences and the optional
+encrypted credential vault stay in `localStorage`. See `docs/browser-mode-plan.md`.
 
-## Browser Pivot Progress
+## Emergence Testbed Progress
 
-The pivot is complete. All runtime surfaces run locally.
+| Step | Area | Status |
+|------|------|--------|
+| 0 | Dependency advisories (zod 4, undici) | Complete |
+| 1 | Verified model catalog, Claude 5.x effort, duplicate-with-effort roster | Complete |
+| 2 | No system trust in observations; puzzles and reproduction off by default | Complete |
+| 3 | Free local speech (`speak`) with conversation in observations | Complete |
+| 4 | Neutral prompt, physical action surface (`give`, `strike`, `take`), private notes | Complete |
+| 5 | Provider failures isolated per agent, bounded retries, unresponsive agents stay in the world | Complete |
+| 6 | Jev and Sage as voiceless decision-model participants | Complete |
+| 7 | Effort in decision telemetry, emergence metrics, Relations panel and exports | Complete |
 
-| Phase | Area | Status |
-|-------|------|--------|
-| 0 | In-memory store and backend-agnostic handlers | Complete |
-| 1a | Continuous-time engine foundations | Complete |
-| 1b | Per-agent async loops and serialized execution | Complete |
-| 2 | Browser LLM layer, BYOK keys, reasoning controls | Complete |
-| 3 | Web Worker hosting and roster UI | Complete |
-| 4 | `localStorage` persistence, resume, export/import | Complete |
-| 5 | CORS proxy support, schema drift fixes, docs v2 | Complete |
-| 6 | Backend removal, browser-only CI, release checklist | Complete |
+## Open Work
 
-## What Works Now
-
-- Browser-local simulation with no PostgreSQL, Redis, Docker, or Fastify requirement.
-- Baseline agents (random / rule / sugarscape / q-learning) run without API keys.
-- Live LLM agents use browser-local BYOK keys stored in `simagents_api_keys`.
-- Roster entries persist in `simagents_agent_roster`.
-- Snapshots persist in `simagents_world_snapshot`; recent UI events persist in `simagents_event_ring`.
-- Resume/new-world choice is visible at startup; export/import moves a saved world between machines.
-- Proxy-required providers use the user-configured proxy URL in `simagents_proxy_url`.
-- Analytics, time-travel replay, puzzle games, prompt editor/inspector, and browser experiments
-  all run locally and are exercised by the browser smoke test.
+1. **Real-provider runs.** All verification uses synthetic provider responses. No paid
+   inference has been run against the new catalog or the decision models.
+2. **Jev and Sage transport.** Browser CORS support is undocumented, so both default to a
+   user relay. Confirm with a live key whether direct browser calls work.
+3. **Prices for new models.** Cost estimates only cover models with an entry in
+   `packages/shared/src/provider-prices.json`; add verified prices before relying on
+   per-run cost caps for Claude 5.5, GPT-6, Gemini 4 and the other new entries.
+4. **Cross-browser smoke.** Local verification ran the chromium suite; CI also runs
+   Firefox and WebKit.
+5. **Null models for relational metrics.** `docs/metric-specification.md` names the
+   comparisons; baseline runs that produce them are not automated yet.
+6. **Trade semantics.** `trade` is an immediate swap the other agent is not asked about,
+   and with cooperation enabled it can grant trust/loyalty bonus items. It is described
+   honestly to agents; decide whether to keep, change or retire it.
 
 ## Verification Gates
 
-From a clean checkout (see `docs/browser-only-release-checklist.md` and `docs/testing.md`):
+From a clean checkout (see `docs/testing.md`):
 
 ```bash
+bun install --frozen-lockfile
+node scripts/audit-dependencies.mjs
 bun run typecheck
-bun run --filter @simagents/engine test
-(cd apps/web && bun run build)
+bun run lint
+bun run test
+bun run build
+node scripts/check-browser-bundle.mjs
 ```
 
-Bundle safety check (expects no output — no backend leakage in the built app):
-
-```bash
-rg -n "fastify|postgres|redis|bullmq|drizzle|@server|/api/|EventSource" apps/web/dist
-```
-
-Browser smoke test against a running dev server:
-
-```bash
-SIMAGENTS_SMOKE_URL=http://localhost:5173/ node scripts/browser-smoke.mjs
-```
-
-The smoke test covers baseline start, pause/resume, reload/resume, export/import,
-missing-proxy UI state, local analytics/replay/puzzles/prompt surfaces, browser
-experiments, and mocked direct/proxied LLM requests. CI (`.github/workflows/ci.yml`)
-runs typecheck, engine tests, web build, and the browser smoke on every PR.
+Browser smoke tests need Playwright 1.62.1 (`PLAYWRIGHT_MODULE_DIR`) and a running dev or
+preview server; `.github/workflows/ci.yml` shows the full matrix and the build-time
+`VITE_*` variables.
 
 ## Known Limitations
 
-1. **API keys are plain `localStorage` values.** XSS is the main threat. Future UI changes
-   must avoid rendering untrusted HTML and should preserve the CSP/security guidance
-   (`docs/security-byok.md`).
-2. **RNG streams are not snapshotted.** Resume keeps world seed, clock, state, and engine
-   metadata, but per-agent probabilistic sequences can diverge after reload.
-3. **Local storage quota is finite.** Long verbose LLM runs can exceed browser quota;
-   event-ring degradation and export are the current mitigation.
-4. **Thin automated coverage.** Only the engine package has unit tests today; `apps/web`
-   and `packages/shared` rely on typecheck plus the browser smoke test.
-
-## Next Work
-
-1. Collapse legacy `db/` and `cache/` naming shims in `packages/engine` into the
-   `engine-memory` modules they re-export (deferred; touches many imports).
-2. Snapshot per-agent RNG streams so resumed runs are deterministic.
-3. Expand engine/action unit coverage (action handlers, executor, agent-runner, roster/LLM).
-4. Evaluate optional passphrase encryption for browser-local BYOK as local-device hardening.
-5. Produce deterministic local run bundles before treating browser-local exports as
-   research artifacts.
+1. **XSS remains the main threat to browser-held keys.** Keys stay in memory by default
+   with optional passphrase encryption; follow `docs/security-byok.md` for any UI that
+   renders model output or imported data.
+2. **Agents' speech is untrusted text.** It is quoted verbatim into other agents' prompts
+   (that exchange is the experiment) and rendered as plain text in the UI.
+3. **Storage is finite.** Long verbose runs approach the 50 MiB budget; export runs as
+   JSON or CSV.

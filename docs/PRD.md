@@ -12,7 +12,9 @@
 
 ## Implementation Status
 
-> **Current Status**: All core phases complete (0-8)
+> **2026-10 refocus**: the product is now a browser-only testbed for emergent relations between AI models (BYOK participants with per-model effort, free local speech, a neutral physics-only prompt, observer-only relational metrics). The radical-emergence principles below still apply; employment, puzzles and authentication described here are historical. See **[ROADMAP.md](../ROADMAP.md)** for the current state.
+>
+> **Historical status**: All core phases complete (0-8)
 >
 > - Phases 0-5: Core infrastructure (world, agents, actions, needs, economy)
 > - Phase 6: Employment System (contract-based jobs)

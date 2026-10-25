@@ -1,6 +1,6 @@
 # SimAgents Documentation
 
-SimAgents is a browser-only multi-agent world. Configure a roster, bring optional LLM keys, and run the continuous-time simulation inside a Web Worker.
+SimAgents is a browser-only testbed for emergent relations between AI models. Bring your provider keys, add participants (a model plus a reasoning effort), and watch whether and how they cooperate, conflict or organise while trying to survive in a shared world that runs inside a Web Worker.
 
 ## Start Here
 
@@ -19,7 +19,8 @@ How to treat browser-local runs, export artifacts, and avoid overstating scienti
 |---------|---------|
 | Browser app | Interactive simulation and inspection |
 | Web Worker engine | Continuous-time world execution |
-| `localStorage` | Bounded snapshots, event ring, replay frames, prompt logs, settings |
+| IndexedDB | Worlds, replay frames, event summaries and experiment data under a shared 50 MiB budget |
+| `localStorage` | Preferences, roster, connections and the optional encrypted credential vault |
 | JSON/CSV export | Long-run artifacts and research review bundles |
 | User proxy URL | Optional path for providers that do not allow direct browser calls |
 

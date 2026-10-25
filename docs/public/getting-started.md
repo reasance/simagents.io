@@ -25,16 +25,18 @@ Open [http://localhost:5173](http://localhost:5173).
 
 Open the Config panel:
 
-- Edit the agent roster.
-- Use baseline agents for zero-cost local runs.
-- Add provider API keys only when you want live model decisions.
-- Add a proxy URL only when a provider requires one.
+- Create a connection for each provider and enter its API key.
+- Add participants to the roster: pick a model and its reasoning effort. Use **Duplicate** to add the same model again at another effort.
+- Verify each model (one potentially billable request) before starting.
+- Add a proxy URL only when a provider requires one (Jev and Sage default to a user relay).
+- Baseline agents are available only in development builds with `VITE_INTERNAL_TESTS=true`.
 
 Browser-local data is stored under versioned or bounded keys:
 
 | Key | Purpose |
 |-----|---------|
-| `simagents_api_keys` | BYOK provider keys |
+| `simagents_credential_vault_v1` | Optional passphrase-encrypted provider keys |
+| `simagents_connections_v1` | Connection metadata without secrets |
 | `simagents_agent_roster` | Agent roster and model settings |
 | `simagents_proxy_url` | Optional user-provided proxy origin |
 | `simagents_world_snapshot` | Versioned world snapshot |
@@ -55,9 +57,9 @@ During a run you can:
 - pause and resume the worker engine
 - export the current world as JSON
 - import a previous world export
-- view local analytics
+- view local analytics, including Relations (speech, replies, gifts, force and survival per model and effort) with CSV/JSON export
 - inspect replay frames
-- inspect puzzle state
+- inspect puzzle state when puzzles are enabled
 - edit and apply the custom prompt
 - inspect local prompt logs
 

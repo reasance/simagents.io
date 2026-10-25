@@ -3,7 +3,9 @@
 [![CI](https://github.com/reasance/simagents.io/actions/workflows/ci.yml/badge.svg)](https://github.com/reasance/simagents.io/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> Browser-only multi-agent simulation for observing AI social behavior.
+> Browser-only testbed for emergent relations between AI models.
+
+Bring your provider keys, add participants (a model plus a reasoning effort; the same model can join several times at different efforts, and the Jev and Sage decision models are supported), and let them try to survive in a shared world. Each agent acts at its own speed, sees only what is near, and can speak to whoever is within earshot. Nothing tells them to cooperate, trade or compete: the prompt describes physics only, agents are anonymous, and Analytics → Relations measures what they say and do to each other per model and effort.
 
 Sim Agents is a Vite SPA. The world runs inside a Web Worker, the UI is React/Zustand/Canvas, and worlds, replay frames, event summaries and experiment data are stored in browser IndexedDB with a shared 50 MiB application budget and JSON/CSV export paths. Preferences and the optional encrypted credential vault remain in `localStorage`.
 
@@ -15,8 +17,10 @@ Sim Agents is a Vite SPA. The world runs inside a Web Worker, the UI is React/Zu
 | Engine | `packages/engine` browser-safe continuous-time simulation |
 | Worker host | `apps/web/src/engine-host` |
 | Persistence | IndexedDB with legacy migration, a 50 MiB data budget and import/export |
-| LLMs | BYOK provider calls, direct or through a user-provided proxy URL |
-| Shared catalog | `packages/shared/src/llm-catalog.ts` |
+| LLMs | BYOK provider calls, direct or through a user-provided proxy URL; effort per participant |
+| Decision models | Jev (TypeSafe AI) and Sage (Levanto Labs) choose among concrete actions and cannot speak |
+| Shared catalog | `packages/shared/src/llm-catalog.ts`, each model with its vendor source and verification date |
+| Emergence metrics | `packages/engine/src/engine/emergence-metrics.ts`, observer-only, CSV/JSON export |
 
 Important local keys:
 
@@ -84,6 +88,8 @@ If Playwright is not installed in the workspace, set `PLAYWRIGHT_MODULE_DIR` to 
 | [BYOK Security Notes](docs/security-byok.md) | Browser key storage, CSP, XSS checklist |
 | [Documentation Index](docs/INDEX.md) | Central navigation hub |
 | [Research Guide](docs/public/research-guide.md) | Browser-local experiment posture and exports |
+| [Metric Specification](docs/metric-specification.md) | Metric tiers, including emergence metrics |
+| [Roadmap](ROADMAP.md) | Current status and open work |
 | [PRD](docs/PRD.md) | Historical product requirements |
 
 ## License

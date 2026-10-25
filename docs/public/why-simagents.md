@@ -13,17 +13,21 @@ AI evaluation still struggles with persistent social behavior:
 
 SimAgents provides a browser-only multi-agent world with explicit mechanics and visible traces. The app runs in a Web Worker, stores state locally, and lets users bring their own model keys without operating infrastructure.
 
+Each participant is a model at a chosen reasoning effort; the same model can take part several times at different efforts. Agents act at their own pace while time keeps passing, so speed is part of the evaluation. They are anonymous to each other and are never told to cooperate, trade or compete.
+
 ### What Is Imposed
 
 - grid, movement, visibility, resources, shelters, vitals, currency
 - action durations and costs
 - event logging, replay frames, prompt logs, and exports
-- optional designed mechanics such as puzzles, work, trade, conflict, and seasons
+- optional designed mechanics such as work, trade, conflict, and seasons (puzzles and reproduction are off by default)
+- local hearing range: agents can speak freely to whoever is within earshot
 
 ### What Can Emerge
 
 - movement patterns
-- trade conventions
+- conversation, questions and shared vocabulary
+- gifts and trade conventions
 - reputation and trust
 - informal social structures
 - cooperation, conflict, and local norms
@@ -50,7 +54,7 @@ Demonstrate multi-agent emergence and methodological caution in a browser-first 
 - Vite + React + Web Worker
 - Zustand stores
 - Canvas world rendering
-- browser `localStorage` snapshots and bounded artifacts
+- IndexedDB worlds and bounded artifacts
 - JSON/CSV export for longer runs
 - multi-provider BYOK catalog plus baseline agents
 
