@@ -537,6 +537,9 @@ export function formatEvent(event: { type: string; tick: number; payload: Record
   const payload = event.payload as Record<string, Record<string, unknown> | unknown>;
 
   switch (event.type) {
+    case 'agent_undecided':
+      description = 'Stayed undecided and did nothing';
+      break;
     case 'agent_moved': {
       const to = payload.to as { x?: number; y?: number } | undefined;
       description = `Moved to (${to?.x}, ${to?.y})`;

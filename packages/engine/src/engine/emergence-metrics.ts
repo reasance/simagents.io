@@ -22,6 +22,8 @@ export interface AgentEmergenceRow {
   inputTokens: number;
   outputTokens: number;
   failedTurns: number;
+  /** Turns a decision model answered without preferring any option */
+  undecidedTurns: number;
   unresponsive: boolean;
   utterances: number;
   questions: number;
@@ -74,7 +76,7 @@ export function computeEmergenceMetrics(snapshot: WorldSnapshotV1): EmergenceMet
     rows.set(agentId, {
       agentId, name: text(agent.name, agentId), llmType: text(agent.llmType), modelId: '', effort: '',
       alive: agent.state !== 'dead', survivalMinutes: 0, decisions: 0, decisionsPerSimHour: 0, meanDecisionMs: null,
-      inputTokens: 0, outputTokens: 0, failedTurns: 0, unresponsive: false, utterances: 0, questions: 0,
+      inputTokens: 0, outputTokens: 0, failedTurns: 0, undecidedTurns: 0, unresponsive: false, utterances: 0, questions: 0,
       distinctListeners: 0, distinctAddressees: 0, giftsGiven: 0, giftsReceived: 0, strikes: 0, takes: 0, trades: 0,
       latencyTotal: 0, latencySamples: 0, listeners: new Set(), addressees: new Set(),
     });
@@ -96,8 +98,9 @@ export function computeEmergenceMetrics(snapshot: WorldSnapshotV1): EmergenceMet
     const payload = record(event.payload);
     if (!row) continue;
     const action = text(payload.action);
-    if (action && (type === `agent_${action}` || type === 'action_failed')) {
-      row.decisions++;
+    const decided = !!action && (type === `agent_${action}` || type === 'action_failed');
+    if (decided || type === 'agent_undecided') {
+      if (decided) row.decisions++; else row.undecidedTurns++;
       const latency = number(payload.processingTimeMs);
       if (latency !== undefined) { row.latencyTotal += latency; row.latencySamples++; }
       const tokens = record(payload.tokens);

@@ -1,6 +1,7 @@
 import { beforeEach, expect, test } from 'bun:test';
 import { resetRuntimeConfig } from '../../config';
 import { createAgent } from '../../engine-memory/queries/agents';
+import { appendEvent } from '../../engine-memory/queries/events';
 import { addToInventory } from '../../engine-memory/queries/inventory';
 import { resetStore } from '../../engine-memory/store';
 import { createIntent } from '../../actions';
@@ -41,4 +42,13 @@ test('relational metrics count speech, replies, gifts, force and shared names fr
   expect(agentsCsv.split('\n')[0]).toStartWith('agentId,name,llmType,modelId,effort');
   expect(agentsCsv).toContain("'=Agent 2");
   expect(emergenceEdgesCsv(metrics).split('\n')).toHaveLength(metrics.edges.length + 1);
+});
+
+test('undecided turns are counted apart from decisions but their latency and tokens still count', async () => {
+  await createAgent({ id: 'sage', name: 'Agent 1', llmType: 'levanto', x: 5, y: 5 });
+  await appendEvent({ tick: 1, agentId: 'sage', eventType: 'agent_undecided', payload: { processingTimeMs: 400, modelId: 'levanto-sage-v1.3', tokens: { input: 90 } } });
+  await new ActionExecutor({ nowMs: () => 60000 }).submit(createIntent('sage', 'sleep', { duration: 1 }, 1), { processingTimeMs: 200 });
+
+  const sage = computeEmergenceMetrics(serializeWorld({ worldSeed: 'metrics', savedAtSimTimeMs: 60 * 60000, speed: 1 })).agents[0];
+  expect(sage).toMatchObject({ decisions: 1, undecidedTurns: 1, failedTurns: 0, meanDecisionMs: 300, inputTokens: 90, modelId: 'levanto-sage-v1.3' });
 });

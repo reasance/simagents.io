@@ -35,6 +35,7 @@ Computed by `packages/engine/src/engine/emergence-metrics.ts` from the event log
 | Survival minutes | validated | death `simTimeMs` (or snapshot time if alive) / 60 000 | Per agent | All agents start at sim time 0; late spawns would be overstated |
 | Decisions per sim hour | descriptive | decision events / survival hours | Speed is part of the evaluation: provider latency and effort reduce it | Sim speed changes during a run distort comparisons; keep speed fixed |
 | Mean decision latency | descriptive | mean `processingTimeMs` of decision events | Wall-clock provider latency | Includes network and relay time, not only model time |
+| Undecided turns | descriptive | `agent_undecided` count | A decision model (Sage) preferred no option and the agent did nothing; not a decision and not a failure, but its latency and tokens count | Depends on the model's own closeness threshold |
 | Utterances / questions | descriptive | `agent_spoke` count; utterances containing `?` | Questions are a surface proxy | Rhetorical questions count; questions without `?` do not |
 | Distinct listeners / addressees | descriptive | distinct agents who heard / were addressed | Contact breadth | Depends on spatial density; compare against random-walk baselines |
 | Gifts given / received | descriptive | `agent_gave` events by giver / recipient | Unilateral transfers | Cannot tell gifts from payments agreed in speech; read the conversation |

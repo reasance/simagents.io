@@ -5,6 +5,7 @@ import { buildObservation } from '../../agents/observer';
 import { createAgent, getAliveAgents } from '../../engine-memory/queries/agents';
 import { addToInventory } from '../../engine-memory/queries/inventory';
 import { resetStore } from '../../engine-memory/store';
+import { isUndecided, type ActionDecision, type UndecidedDecision } from '../../engine/decision';
 import { DecisionModelProvider, decisionOptions, decisionState } from '../../engine/llm/decision-model-provider';
 import { ProviderRequestError } from '../../engine/llm/provider-error';
 import { createRosterProviderFactory } from '../../engine/llm/roster-factory';
@@ -65,18 +66,28 @@ test('Jev receives one choice question and its answer becomes the chosen action'
   expect(String(sent!.init.body)).not.toContain('secret-key');
 });
 
-test('Sage acts on the most probable option when its choice is too close to call', async () => {
+test('Sage stays undecided when its choice is too close to call', async () => {
   const { agent, observation } = await scene();
   let body: Record<string, unknown> = {};
   globalThis.fetch = (async (_url: string, init: RequestInit) => {
     body = JSON.parse(String(init.body));
-    return Response.json({ id: 'next_action', kind: 'choice', result: { chosen: null, probability: null, probabilities: [{ option: 'rest', probability: 0.48 }, { option: 'forage', probability: 0.52 }] }, meta: { model: 'levanto-sage-v1.3', latency_ms: 90 } });
+    return Response.json({ id: 'next_action', kind: 'choice', result: { chosen: null, probability: null, probabilities: [{ option: 'rest', probability: 0.48 }, { option: 'forage', probability: 0.52 }, { option: 'fly_away', probability: 0 }] }, meta: { model: 'levanto-sage-v1.3', latency_ms: 90 } });
   }) as unknown as typeof fetch;
   const decision = await new DecisionModelProvider({ provider: 'levanto', connection: levanto(), apiKey: 'k' }).decide({ agent, observation, rng: () => 0.5 }, new AbortController().signal);
-  expect(decision.type).toBe('forage');
+  expect(isUndecided(decision)).toBe(true);
+  expect(decision).not.toHaveProperty('type');
+  expect((decision as UndecidedDecision).probabilities).toEqual({ rest: 0.48, forage: 0.52 });
   expect(decision.telemetry?.modelId).toBe('levanto-sage-v1.3');
   expect((body.question as { kind: string; options: unknown[] }).kind).toBe('choice');
   expect((body.question as { options: Array<{ option: string }> }).options.map((option) => option.option)).toContain('forage');
+});
+
+test('Sage acts on a clear choice', async () => {
+  const { agent, observation } = await scene();
+  globalThis.fetch = (async () => Response.json({ id: 'next_action', kind: 'choice', result: { chosen: 'forage', probability: 0.8 }, meta: { model: 'levanto-sage-v1.3' } })) as unknown as typeof fetch;
+  const decision = await new DecisionModelProvider({ provider: 'levanto', connection: levanto(), apiKey: 'k' }).decide({ agent, observation, rng: () => 0.5 }, new AbortController().signal);
+  expect(isUndecided(decision)).toBe(false);
+  expect((decision as ActionDecision).type).toBe('forage');
 });
 
 test('an unknown choice or an HTTP failure becomes a classified provider error', async () => {

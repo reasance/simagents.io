@@ -38,9 +38,21 @@ export interface DecisionTelemetry {
   };
 }
 
+/** A decision model that found no option clearly better than the others: the agent does nothing this turn. */
+export interface UndecidedDecision {
+  undecided: true;
+  reasoning?: string;
+  /** Option probabilities as reported, for the observer only */
+  probabilities?: Record<string, number>;
+  telemetry?: DecisionTelemetry;
+}
+
+export const isUndecided = (decision: ActionDecision | UndecidedDecision): decision is UndecidedDecision =>
+  'undecided' in decision && decision.undecided === true;
+
 export interface DecisionProvider {
   readonly kind: string;
-  decide(ctx: DecisionContext, signal: AbortSignal): Promise<ActionDecision>;
+  decide(ctx: DecisionContext, signal: AbortSignal): Promise<ActionDecision | UndecidedDecision>;
 }
 
 export type DecisionInput =

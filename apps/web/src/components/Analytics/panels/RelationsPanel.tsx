@@ -80,7 +80,10 @@ export function RelationsPanel() {
                 </td>
                 <td className="pr-2 py-1">{[row.modelId || row.llmType, row.effort].filter(Boolean).join(' · ')}</td>
                 <td className="pr-2 py-1">{row.survivalMinutes}</td>
-                <td className="pr-2 py-1">{row.decisionsPerSimHour}</td>
+                <td className="pr-2 py-1">
+                  {row.decisionsPerSimHour}
+                  {row.undecidedTurns > 0 && <span className="text-city-text-muted"> ({translate('Undecided: {count}', { count: row.undecidedTurns })})</span>}
+                </td>
                 <td className="pr-2 py-1">{row.utterances} ({row.questions})</td>
                 <td className="pr-2 py-1">{row.giftsGiven} / {row.giftsReceived}</td>
                 <td className="pr-2 py-1">{row.strikes}</td>

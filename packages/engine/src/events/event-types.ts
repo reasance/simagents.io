@@ -102,6 +102,7 @@ export const EVENT_REGISTRY: Record<string, EventTypeDefinition> = {
   agent_spoke: { category: 'emergent', description: 'Agent said something within earshot of others' },
   agent_heard: { category: 'emergent', description: 'Agent heard what a nearby agent said' },
   agent_decision_failed: { category: 'infrastructure', description: 'A provider call for an agent decision failed; the agent lost that turn' },
+  agent_undecided: { category: 'emergent', description: 'A decision model preferred no option, so the agent did nothing that turn' },
   agent_unresponsive: { category: 'infrastructure', description: 'An agent stopped deciding after provider failures and stays in the world' },
   agent_gave: { category: 'emergent', description: 'Agent handed items or currency to another' },
   agent_received: { category: 'emergent', description: 'Agent was handed items or currency' },

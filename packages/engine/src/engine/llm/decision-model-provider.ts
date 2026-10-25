@@ -13,7 +13,7 @@ import { getRuntimeConfig } from '../../config';
 import type { ActionParams, ActionType } from '../../actions/types';
 import { buildFullPrompt } from '../../llm/prompt-builder';
 import type { AgentObservation } from '../../llm/types';
-import type { ActionDecision, DecisionContext, DecisionProvider } from '../decision';
+import type { ActionDecision, DecisionContext, DecisionProvider, UndecidedDecision } from '../decision';
 import { ProviderRequestError, boundedProviderJson, classifyProviderStatus } from './provider-error';
 import type { RequestBudget } from './request-budget';
 
@@ -116,21 +116,27 @@ export class DecisionModelProvider implements DecisionProvider {
     this.protocol = config.connection.protocol;
   }
 
-  async decide(ctx: DecisionContext, signal: AbortSignal): Promise<ActionDecision> {
+  async decide(ctx: DecisionContext, signal: AbortSignal): Promise<ActionDecision | UndecidedDecision> {
     const observation = ctx.observation as AgentObservation;
     const options = decisionOptions(observation);
-    const { chosen, probability, modelId, tokens } = await this.ask(decisionState(observation), options, signal);
+    const { chosen, probability, probabilities, modelId, tokens } = await this.ask(decisionState(observation), options, signal);
+    const telemetry = {
+      modelId,
+      tokens,
+      costEligible: false,
+      pricingContext: { providerId: this.config.provider, modelId, endpoint: this.config.connection.endpoint },
+    };
+    // No option clearly won: the model stays undecided and the agent does nothing this turn.
+    if (chosen === null) {
+      const known = Object.entries(probabilities ?? {}).filter(([key]) => options.some((option) => option.key === key));
+      return { undecided: true, reasoning: 'Undecided: no option clearly preferred', probabilities: known.length > 0 ? Object.fromEntries(known) : undefined, telemetry };
+    }
     const option = options.find((candidate) => candidate.key === chosen)!;
     return {
       type: option.type,
       params: option.params,
       reasoning: `Chose "${option.key}" (${option.description})${probability === undefined ? '' : ` with probability ${probability.toFixed(2)}`}`,
-      telemetry: {
-        modelId,
-        tokens,
-        costEligible: false,
-        pricingContext: { providerId: this.config.provider, modelId, endpoint: this.config.connection.endpoint },
-      },
+      telemetry,
     };
   }
 
@@ -175,7 +181,7 @@ export class DecisionModelProvider implements DecisionProvider {
       let json: unknown;
       try { json = await boundedProviderJson(response); } catch { throw new ProviderRequestError('incompatible', this.config.provider); }
       const answer = this.protocol === 'typesafe-systemone' ? readTypeSafe(json) : readLevanto(json);
-      if (!answer || !options.some((option) => option.key === answer.chosen)) throw new ProviderRequestError('incompatible', this.config.provider);
+      if (!answer || (answer.chosen !== null && !options.some((option) => option.key === answer.chosen))) throw new ProviderRequestError('incompatible', this.config.provider);
       return { ...answer, modelId: answer.modelId ?? modelId };
     } finally {
       release?.();
@@ -183,7 +189,8 @@ export class DecisionModelProvider implements DecisionProvider {
   }
 }
 
-interface Answer { chosen: string; probability?: number; modelId?: string; tokens?: { input?: number; output?: number } }
+/** `chosen` is null when the model is undecided. */
+interface Answer { chosen: string | null; probability?: number; probabilities?: Record<string, number>; modelId?: string; tokens?: { input?: number; output?: number } }
 
 const record = (value: unknown): Record<string, unknown> => (value && typeof value === 'object' ? value as Record<string, unknown> : {});
 const count = (value: unknown) => (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : undefined);
@@ -210,14 +217,13 @@ function readLevanto(json: unknown): Answer | undefined {
   if (typeof result.chosen === 'string') {
     return { chosen: result.chosen, probability: typeof result.probability === 'number' ? result.probability : undefined, modelId };
   }
-  // A null choice means the top options were too close to call; act on the most probable one.
-  // Probabilities may come as a map or as a list in option order.
+  if (result.chosen !== null) return undefined;
+  // A null choice means the top options were too close to call. Probabilities may
+  // come as a map or as a list in option order; they are kept for the observer.
   const raw = result.probabilities;
   const entries: Array<[string, unknown]> = Array.isArray(raw)
     ? raw.map((item) => [String(record(item).option ?? ''), record(item).probability])
     : Object.entries(record(raw));
-  const ranked = entries.filter((entry): entry is [string, number] => entry[0] !== '' && typeof entry[1] === 'number');
-  if (ranked.length === 0) return undefined;
-  const [chosen, probability] = ranked.reduce((best, entry) => (entry[1] > best[1] ? entry : best));
-  return { chosen, probability, modelId };
+  const probabilities = Object.fromEntries(entries.filter((entry): entry is [string, number] => entry[0] !== '' && typeof entry[1] === 'number'));
+  return { chosen: null, probabilities: Object.keys(probabilities).length > 0 ? probabilities : undefined, modelId };
 }

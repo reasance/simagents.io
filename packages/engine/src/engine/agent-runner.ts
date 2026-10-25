@@ -16,9 +16,11 @@ import { publishEvent } from '../engine-memory/bus';
 import { v4 as uuid } from 'uuid';
 import type { ActionExecutor } from './executor';
 import {
+  isUndecided,
   type ActionDecision,
   type DecisionContext,
   type DecisionProvider,
+  type UndecidedDecision,
 } from './decision';
 
 export interface AgentRunnerHost {
@@ -157,6 +159,19 @@ export class AgentRunner {
         await this.options.host.waitWhilePaused(signal);
         if (signal.aborted) break;
 
+        if (isUndecided(decision)) {
+          // A legitimate answer, not a failure: the agent simply does nothing this turn.
+          await this.emit(freshAgent.id, 'agent_undecided', {
+            reasoning: decision.reasoning,
+            probabilities: decision.probabilities,
+            processingTimeMs,
+            modelId: decision.telemetry?.modelId,
+            tokens: decision.telemetry?.tokens,
+          });
+          if (getRuntimeConfig().engine.minDecisionIntervalMs <= 0) await this.options.host.sleepWall(1, signal);
+          continue;
+        }
+
         if (decision.notes !== undefined) {
           const notes = decision.notes;
           await this.options.executor.mutate(async () => { await updateAgent(freshAgent.id, { privateNotes: notes }); });
@@ -231,7 +246,7 @@ export class AgentRunner {
     agent: Agent,
     observation: unknown,
     runnerSignal: AbortSignal
-  ): Promise<{ decision: ActionDecision; usedFallback: boolean; processingTimeMs: number }> {
+  ): Promise<{ decision: ActionDecision | UndecidedDecision; usedFallback: boolean; processingTimeMs: number }> {
     const timeoutMs = getRuntimeConfig().engine.decisionTimeoutMs;
     const controller = new AbortController();
     const abortDecision = () => controller.abort();

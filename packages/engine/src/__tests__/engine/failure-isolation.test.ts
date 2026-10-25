@@ -3,7 +3,7 @@ import { SimEngine } from '../../engine/engine';
 import { resetRuntimeConfig, setRuntimeConfig } from '../../config';
 import { store } from '../../engine-memory/store';
 import { ProviderRequestError, type ProviderErrorCode } from '../../engine/llm/provider-error';
-import type { ActionDecision } from '../../engine/decision';
+import type { ActionDecision, UndecidedDecision } from '../../engine/decision';
 import type { Agent } from '../../db/schema';
 
 const engines: SimEngine[] = [];
@@ -88,4 +88,30 @@ test('an explicit start gives unresponsive agents another chance', async () => {
   await engine.start();
   await settle();
   expect(calls.get(failingId())).toBeGreaterThan(1);
+});
+
+test('an undecided answer is neither an action nor a failure', async () => {
+  const undecided: UndecidedDecision = { undecided: true, reasoning: 'Undecided', probabilities: { rest: 0.49, forage: 0.51 }, telemetry: { modelId: 'levanto-sage-v1.3' } };
+  const calls: string[] = [];
+  const engine = new SimEngine({
+    speed: 1,
+    onError: (error) => { throw error; },
+    providerFactory: (agent: Agent) => ({ kind: 'fixture', decide: async () => {
+      calls.push(agent.id);
+      return calls.length <= 2 ? undecided : sleep;
+    } }),
+  });
+  engines.push(engine);
+  await engine.seed({ agentCount: 1 });
+  await engine.start();
+  for (let i = 0; i < 5 && calls.length < 3; i++) { await settle(); await engine.tickWall(1000); }
+  await settle();
+  expect(calls.length).toBe(3);
+  expect(eventsOf('agent_undecided').map((event) => event.payload)).toEqual([
+    expect.objectContaining({ probabilities: { rest: 0.49, forage: 0.51 }, modelId: 'levanto-sage-v1.3' }),
+    expect.objectContaining({ probabilities: { rest: 0.49, forage: 0.51 } }),
+  ]);
+  expect(eventsOf('agent_decision_failed')).toHaveLength(0);
+  expect(eventsOf('agent_unresponsive')).toHaveLength(0);
+  expect(eventsOf('agent_sleeping')).toHaveLength(1);
 });
