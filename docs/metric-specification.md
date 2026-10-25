@@ -28,7 +28,7 @@ Metric claims in SimAgents must identify the metric tier and the failure mode be
 
 ## Emergence Metrics (Relations panel and exports)
 
-Computed by `packages/engine/src/engine/emergence-metrics.ts` from the event log only; agents never see them. Exported as agents CSV, interactions CSV and JSON from Analytics → Relations. The worker computes them over the in-memory event log, which keeps the most recent 10 000 events, per-heartbeat bookkeeping included (saved snapshots keep only 500 and are not used for these figures); runs longer than that are measured over the retained window while survival still spans the whole run.
+Computed by `packages/engine/src/engine/emergence-metrics.ts` from the event log only; agents never see them. Exported as agents CSV, interactions CSV and JSON from the Relations page. The worker computes them over the in-memory event log, which keeps the most recent 10 000 events, per-heartbeat bookkeeping included (saved snapshots keep only 500 and are not used for these figures); runs longer than that are measured over the retained window while survival still spans the whole run.
 
 | Metric | Tier | Formula | Notes | Failure Mode |
 |--------|------|---------|-------|--------------|

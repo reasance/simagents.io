@@ -21,15 +21,15 @@ bun dev:web
 
 Open [http://localhost:5173](http://localhost:5173).
 
-## Configure Agents
+## Set Up A Simulation
 
-Open the Config panel:
+Click **Set up a simulation** (or **Start**). Setup has three steps:
 
-- Create a connection for each provider and enter its API key.
-- Add participants to the roster: pick a model and its reasoning effort. Use **Duplicate** to add the same model again at another effort.
-- Verify each model (one potentially billable request) before starting.
-- Add a proxy URL only when a provider requires one (Jev and Sage default to a user relay).
-- Baseline agents are available only in development builds with `VITE_INTERNAL_TESTS=true`.
+1. **Provider keys.** Paste a key for each provider you want to use. Each key gets a standard connection; providers that do not accept browser calls (and Jev and Sage) need your relay URL. Custom endpoints and the optional encrypted key vault are in the same step.
+2. **Participants.** Each participant is a provider, a model and an effort level. Use **Duplicate** to add the same model again at another effort. Verify each participant (one potentially billable request); changing the model or effort needs a new check.
+3. **Limits and start.** Set the request, duration and token limits, choose whether to resume a saved world, and start.
+
+The system prompt and the world's starting values live in **Menu → Advanced settings**. Baseline agents are available only in development builds with `VITE_INTERNAL_TESTS=true`.
 
 Browser-local data is stored under versioned or bounded keys:
 
@@ -50,18 +50,14 @@ Provider keys stay in memory by default; encrypted local storage is optional. Re
 
 ## Run A Simulation
 
-Click **Start**. If a saved world exists, choose whether to resume it or start fresh.
+The world view shows the map (spoken lines appear as brass arcs from speaker to listeners), the participants with their model and effort, and a feed of what they said and did to each other. Select a participant to see its vitals, private notes and recent decisions.
 
 During a run you can:
 
-- pause and resume the worker engine
-- export the current world as JSON
-- import a previous world export
-- view local analytics, including Relations (speech, replies, gifts, force and survival per model and effort) with CSV/JSON export
-- inspect replay frames
-- inspect puzzle state when puzzles are enabled
-- edit and apply the custom prompt
-- inspect local prompt logs
+- pause and resume the worker engine, and change its speed
+- open **Relations** for observer-only metrics (speech, replies, gifts, force and survival per model and effort) with CSV/JSON export
+- open **Replay** to step through saved frames, and **Prompts** to read the exact prompts and answers
+- open the social graph, export the current world or import a previous export from the menu
 
 ## Browser Smoke Test
 
@@ -77,7 +73,7 @@ If Playwright is not installed in the workspace, set `PLAYWRIGHT_MODULE_DIR` to 
 
 ### Provider Needs Proxy
 
-Add a proxy URL in the Config panel or choose a direct-browser provider.
+Enter your relay URL in the first setup step, or choose a provider that accepts browser calls.
 
 ### World Snapshot Is Too Large
 
@@ -85,7 +81,7 @@ Export the world, reduce long-running verbose sessions, then start or import a s
 
 ### No Agents Appearing
 
-Configure at least one roster entry and click **Start**. Baseline agents do not need provider keys.
+Add at least one participant in setup and start the world. Baseline agents do not need provider keys.
 
 ### LLM Timeout Errors
 

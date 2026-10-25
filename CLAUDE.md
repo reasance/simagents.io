@@ -25,6 +25,11 @@ Rules:
 - **Anonymity.** Prompts never contain model, provider or roster names. Model and effort are visible only to the observer.
 - **Speed is evaluated.** There is no global tick and simulated time passes while an agent decides. Never normalize latency between models.
 - **Observer-only metrics.** Relational metrics (`engine/emergence-metrics.ts`) are computed from the event log and never fed back to agents.
+- **UI only for real functions.** Every control must be wired to something the product does. Do not add placeholder panels, features that are off for everyone, or controls the engine ignores.
+
+## Interface
+
+The design is "Observatory": dark, map-centred, one brass accent for what is active, selected or spoken. Colours and type are tokens in `apps/web/src/index.css` (`night`, `panel`, `raised`, `rule`, `mist`, `star`, `brass`, `ok`, `alert`; IBM Plex Sans/Mono and Barlow Condensed, self-hosted). Component classes live in `@layer components` so Tailwind utilities can override them. Targets are at least 44 px, everything works by keyboard, and the browser smokes audit WCAG 2.2 AA at 1440, 768 and 390 px.
 
 ## Architecture
 
@@ -33,7 +38,9 @@ apps/web/
   src/engine-host/        # Worker entrypoint and main-thread client
   src/services/           # IndexedDB/localStorage persistence, replay, prompt logs, experiments, verification
   src/stores/             # Zustand state
-  src/components/         # UI (Analytics → Relations shows emergence metrics)
+  src/components/         # UI: TopBar, Setup (keys → participants → limits), World (participants, detail, feed),
+                          # Canvas/WorldMap, Analytics (Relations page), SocialGraph, ConfigPanel (advanced settings)
+  src/index.css           # Observatory design tokens and component classes
 apps/relay/               # Official provider relay (Cloudflare Worker, text protocols only)
 apps/admission/           # Relay access admission (Cloudflare Worker)
 packages/engine/
@@ -91,7 +98,6 @@ Current worker capabilities include:
 - world init/start/pause/resume/reset/snapshot/export
 - runtime config and custom prompt application
 - local replay range/frame/agent timeline
-- local puzzle list/details/results/stats (puzzles are off by default)
 - local prompt log consumption
 - browser experiment run/cancel/status/export
 - browser agent adapter registration

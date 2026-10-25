@@ -76,7 +76,7 @@ The official relay implementation lives in `apps/relay`. It has not been deploye
 - **Prompt.** `llm/prompts/emergent-prompt.ts` describes physics only; actions come from `llm/prompts/action-surface.ts`, alphabetical and physical (`give`, `speak`, `strike`, `take`, `trade`, …). Prompts never name a model or provider.
 - **Decisions.** LLMs answer with `{ action, params, reasoning, notes? }`; `notes` replaces the agent's private notes. Decision models (Jev, Sage) receive the same state and choose among concrete actions; they cannot speak. When Sage finds no option clearly better, the agent stays undecided and does nothing for one simulated minute (`durations.undecidedMs`, the same for every model) before deciding again (`agent_undecided`).
 - **Failures.** Provider failures belong to the agent: bounded retries for rate limits and outages, then the agent is left unresponsive while the world continues. Session limits still stop the world.
-- **Observation.** `engine/emergence-metrics.ts` computes relational metrics from the event log for the Analytics → Relations section and its exports.
+- **Observation.** `engine/emergence-metrics.ts` computes relational metrics from the event log for the Relations page and its exports.
 
 ## Removed Surfaces
 

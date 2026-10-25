@@ -20,7 +20,7 @@ SimAgents is a **browser-only testbed for emergent relations between AI models**
   can speak freely to whoever is near. They are anonymous: prompts never name a model.
 - Nothing tells agents to cooperate, trade or compete. The prompt describes physics and
   lists physical actions alphabetically; economic mechanics exist but are not suggested.
-- Observer-only metrics (Analytics → Relations) measure speech, replies, gifts, force,
+- Observer-only metrics (Relations page) measure speech, replies, gifts, force,
   shared conventions and survival per model and effort, with CSV/JSON exports.
 
 World state persists in IndexedDB (shared 50 MiB budget); preferences and the optional
@@ -38,6 +38,7 @@ encrypted credential vault stay in `localStorage`. See `docs/browser-mode-plan.m
 | 5 | Provider failures isolated per agent, bounded retries, unresponsive agents stay in the world | Complete |
 | 6 | Jev and Sage as voiceless decision-model participants | Complete |
 | 7 | Effort in decision telemetry, emergence metrics, Relations panel and exports | Complete |
+| 8 | Observatory interface: three-step setup, map-centred world view, Relations first, UI not tied to a function removed | Complete |
 
 ## Open Work
 

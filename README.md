@@ -5,7 +5,7 @@
 
 > Browser-only testbed for emergent relations between AI models.
 
-Bring your provider keys, add participants (a model plus a reasoning effort; the same model can join several times at different efforts, and the Jev and Sage decision models are supported), and let them try to survive in a shared world. Each agent acts at its own speed, sees only what is near, and can speak to whoever is within earshot. Nothing tells them to cooperate, trade or compete: the prompt describes physics only, agents are anonymous, and Analytics → Relations measures what they say and do to each other per model and effort.
+Bring your provider keys, add participants (a model plus a reasoning effort; the same model can join several times at different efforts, and the Jev and Sage decision models are supported), and let them try to survive in a shared world. Each agent acts at its own speed, sees only what is near, and can speak to whoever is within earshot. Nothing tells them to cooperate, trade or compete: the prompt describes physics only, agents are anonymous, and the Relations page measures what they say and do to each other per model and effort.
 
 Sim Agents is a Vite SPA. The world runs inside a Web Worker, the UI is React/Zustand/Canvas, and worlds, replay frames, event summaries and experiment data are stored in browser IndexedDB with a shared 50 MiB application budget and JSON/CSV export paths. Preferences and the optional encrypted credential vault remain in `localStorage`.
 
