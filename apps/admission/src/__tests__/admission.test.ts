@@ -34,7 +34,9 @@ test('CORS preflight permits only POST and Content-Type', async () => {
   const preflight = (method: string, requestedHeaders: string) => new Request('https://admission.example.test/v1/session', {
     method: 'OPTIONS', headers: { Origin: origin, 'Access-Control-Request-Method': method, 'Access-Control-Request-Headers': requestedHeaders },
   });
-  expect((await handler(preflight('POST', 'content-type'), env())).status).toBe(204);
+  const allowed = await handler(preflight('POST', 'content-type'), env());
+  expect(allowed.status).toBe(204);
+  expect(allowed.headers.get('Access-Control-Max-Age')).toBe('7200');
   expect((await handler(preflight('GET', 'content-type'), env())).status).toBe(405);
   expect((await handler(preflight('POST', 'x-provider-key'), env())).status).toBe(400);
   expect(calls).toBe(0);

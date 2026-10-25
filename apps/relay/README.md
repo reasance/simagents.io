@@ -25,7 +25,7 @@ Limits:
 - 256 KiB request body; 1 MiB provider response.
 - 60-second total deadline, including body reads, and cancellation on client disconnect.
 - Six admitted upstream operations per isolate, bounding buffered-response memory.
-- Coordinated subject counters: six concurrent leases and 50 forwarded operations per rolling minute. Additional local rate bindings: 60 operations/minute per authenticated subject; 120 edge requests/minute per HMAC-blinded client address as an additional abuse backstop. Edge checks include preflight/health traffic.
+- Coordinated subject counters: six concurrent leases and 50 forwarded operations per rolling minute. Additional local rate bindings: 60 operations/minute per authenticated subject; 120 edge requests/minute per HMAC-blinded client address as an additional abuse backstop. Edge checks include preflight/health traffic; preflight answers carry `Access-Control-Max-Age: 7200`, so browsers do not preflight every inference.
 - Tokens are valid for at most 15 minutes and are bound to an exact HTTPS application origin. Subject identifiers should be opaque, not email addresses or names.
 - No retry, fallback destination or alternate model is selected by this service.
 

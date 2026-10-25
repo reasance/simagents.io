@@ -15,6 +15,8 @@ export interface AdmissionEnv {
 }
 export const ACCESS_TTL_SECONDS = 900;
 export const TURNSTILE_ACTION = 'simagents-session';
+/** Browsers reuse a preflight answer this long (Chromium caps at 7200 s) instead of preflighting every renewal. */
+const PREFLIGHT_MAX_AGE_SECONDS = 7200;
 const requestSchema = z.object({ proof: z.string().min(1).max(2048), previousToken: z.string().max(4096).optional() }).strict();
 class AdmissionFailure extends Error {
   constructor(readonly code: string, readonly status: number) { super(code); }
@@ -66,7 +68,9 @@ export function createAdmission(siteverify: typeof fetch = fetch, nowSeconds = (
         if (request.headers.get('Access-Control-Request-Method') !== 'POST') throw new AdmissionFailure('method-denied', 405);
         const requested = (request.headers.get('Access-Control-Request-Headers') ?? '').toLowerCase().split(',').map(value => value.trim()).filter(Boolean);
         if (requested.some(value => value !== 'content-type')) throw new AdmissionFailure('header-denied', 400);
-        return new Response(null, { status: 204, headers: headers(origin) });
+        const preflight = headers(origin);
+        preflight.set('Access-Control-Max-Age', String(PREFLIGHT_MAX_AGE_SECONDS));
+        return new Response(null, { status: 204, headers: preflight });
       }
       if (request.method !== 'POST') throw new AdmissionFailure('method-denied', 405);
       if (request.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase() !== 'application/json') throw new AdmissionFailure('content-type', 415);

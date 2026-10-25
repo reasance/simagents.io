@@ -9,6 +9,8 @@ export interface MetricsContext { waitUntil(promise: Promise<unknown>): void }
 export const MAX_REQUEST_BYTES = 256 * 1024;
 export const MAX_RESPONSE_BYTES = 1024 * 1024;
 export const MAX_IN_FLIGHT = 6;
+/** Browsers reuse a preflight answer this long (Chromium caps at 7200 s) instead of preflighting every inference. */
+export const PREFLIGHT_MAX_AGE_SECONDS = 7200;
 const TIMEOUT_MS = 60000;
 class RelayFailure extends Error {
   constructor(readonly code: string, readonly status: number) { super(code); }
@@ -93,6 +95,7 @@ export function createRelay(upstream: typeof fetch = fetch, timeoutMs = TIMEOUT_
         if (requested.some((header) => !['content-type', 'authorization', 'x-provider-key'].includes(header))) throw new RelayFailure('header-denied', 400);
         const headers = responseHeaders(origin);
         headers.set('Access-Control-Allow-Methods', 'POST'); headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Provider-Key');
+        headers.set('Access-Control-Max-Age', String(PREFLIGHT_MAX_AGE_SECONDS));
         return new Response(null, { status: 204, headers });
       }
       if (request.method !== 'POST' || url.pathname === '/v1/health') throw new RelayFailure('method-denied', 405);

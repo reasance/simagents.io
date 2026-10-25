@@ -86,6 +86,8 @@ test('upstream errors are redacted, abuse keys contain no credentials, and prefl
   expect(identifiers.join('')).not.toContain('private-provider-key'); expect(identifiers.join('')).not.toContain('test-user');
   const preflight = await relay(new Request('https://relay.example.test/v1/inference', { method: 'OPTIONS', headers: { Origin: origin, 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'authorization,content-type,x-provider-key' } }), settings);
   expect(preflight.status).toBe(204); expect(preflight.headers.get('Access-Control-Allow-Credentials')).toBeNull();
+  // Cacheable, so browsers do not preflight (and bill) every inference.
+  expect(preflight.headers.get('Access-Control-Max-Age')).toBe('7200');
 });
 
 test('all official client protocol adapters interoperate with the relay policy', async () => {
