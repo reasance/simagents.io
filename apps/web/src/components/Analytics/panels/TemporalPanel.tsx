@@ -33,7 +33,7 @@ export function TemporalPanel() {
   // Prepare line chart data for decision latencys
   const durationLineData = [{
     id: 'duration',
-    color: '#e07a5f',
+    color: '#cfa65e',
     points: tickDurations.map((d) => ({
       x: d.tick,
       y: d.duration,
@@ -43,7 +43,7 @@ export function TemporalPanel() {
   // Prepare line chart data for actions per tick
   const actionsLineData = [{
     id: 'actions',
-    color: '#81b29a',
+    color: '#8a96a6',
     points: tickDurations.map((d) => ({
       x: d.tick,
       y: d.actionsExecuted,
@@ -53,7 +53,7 @@ export function TemporalPanel() {
   // Prepare line chart data for events per tick
   const eventsLineData = [{
     id: 'events',
-    color: '#6a8caf',
+    color: '#8a96a6',
     points: eventsByTick.map((d) => ({
       x: d.tick,
       y: d.eventCount,
@@ -63,7 +63,7 @@ export function TemporalPanel() {
   // Prepare line chart data for agent count over time
   const agentCountData = [{
     id: 'agents',
-    color: '#9a8bc2',
+    color: '#8a96a6',
     points: tickDurations.map((d) => ({
       x: d.tick,
       y: d.agentCount,
@@ -73,7 +73,7 @@ export function TemporalPanel() {
   return (
     <div className="space-y-4">
       {/* Overview cards */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="stat-grid">
         <MetricCard
           label={translate("Current Tick")}
           value={currentTick}
@@ -81,7 +81,7 @@ export function TemporalPanel() {
         <MetricCard
           label={translate("Avg max decision latency")}
           value={`${avgDuration.toFixed(0)}ms`}
-          color={avgDuration > 5000 ? 'warning' : 'default'}
+          tone={avgDuration > 5000 ? 'alert' : 'default'}
         />
         <MetricCard
           label={translate("Total Events")}
@@ -90,15 +90,15 @@ export function TemporalPanel() {
       </div>
 
       {/* Actions per tick */}
-      <div className="bg-city-surface-hover/20 rounded-lg p-3">
-        <div className="text-xs text-city-text-muted mb-2 uppercase tracking-wide">{translate("Avg Actions/Tick:")}{" "}{avgActions.toFixed(1)}
+      <div>
+        <div className="engraved">{translate("Avg Actions/Tick:")}{" "}{avgActions.toFixed(1)}
         </div>
       </div>
 
       {/* Tick duration over time */}
       {tickDurations.length > 0 && (
         <div>
-          <div className="text-xs text-city-text-muted mb-2 uppercase tracking-wide">{translate("Max decision latency (ms)")}</div>
+          <div className="engraved mb-2">{translate("Max decision latency (ms)")}</div>
           <LineChart
             data={durationLineData}
             height={120}
@@ -109,7 +109,7 @@ export function TemporalPanel() {
       {/* Actions per tick over time */}
       {tickDurations.length > 0 && (
         <div>
-          <div className="text-xs text-city-text-muted mb-2 uppercase tracking-wide">{translate("Actions per Tick")}</div>
+          <div className="engraved mb-2">{translate("Actions per Tick")}</div>
           <LineChart
             data={actionsLineData}
             height={120}
@@ -120,7 +120,7 @@ export function TemporalPanel() {
       {/* Events per tick */}
       {eventsByTick.length > 0 && (
         <div>
-          <div className="text-xs text-city-text-muted mb-2 uppercase tracking-wide">{translate("Events per Tick")}</div>
+          <div className="engraved mb-2">{translate("Events per Tick")}</div>
           <LineChart
             data={eventsLineData}
             height={120}
@@ -131,7 +131,7 @@ export function TemporalPanel() {
       {/* Agent count over time */}
       {tickDurations.length > 0 && tickDurations.some((d) => d.agentCount > 0) && (
         <div>
-          <div className="text-xs text-city-text-muted mb-2 uppercase tracking-wide">{translate("Active Agents over Time")}</div>
+          <div className="engraved mb-2">{translate("Active Agents over Time")}</div>
           <LineChart
             data={agentCountData}
             height={120}
@@ -142,8 +142,8 @@ export function TemporalPanel() {
       {/* Recent ticks table */}
       {tickDurations.length > 0 && (
         <div>
-          <div className="text-xs text-city-text-muted mb-2 uppercase tracking-wide">{translate("Recent Ticks")}</div>
-          <div className="bg-city-surface-hover/20 rounded-lg overflow-hidden">
+          <div className="engraved mb-2">{translate("Recent Ticks")}</div>
+          <div className="overflow-hidden">
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-city-border">

@@ -8,8 +8,8 @@ export function RelayAccessButton() {
   useLocale();
   const state = useRelaySession();
   if (!admissionConfig()) return null;
-  return <div className="space-y-2 text-xs">
-    <button type="button" className="min-h-11 rounded border border-gray-500 px-3 text-white disabled:opacity-40" disabled={state.status === 'checking' || state.status === 'interaction-required'} onClick={() => void relaySession.start()}>{translate(state.status === 'ready' ? 'Renew relay access' : 'Get relay access')}</button>
+  return <div className="grid gap-2 text-sm">
+    <button type="button" className="btn btn-small" disabled={state.status === 'checking' || state.status === 'interaction-required'} onClick={() => void relaySession.start()}>{translate(state.status === 'ready' ? 'Renew relay access' : 'Get relay access')}</button>
     <p role="status">{translate(state.status === 'ready' ? 'Relay access is ready in this tab.' : 'Complete the security check to use the public relay. No account is needed.')}</p>
   </div>;
 }

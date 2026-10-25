@@ -13,7 +13,7 @@ export function StorageNotice() {
     try { await clearReplayFrames(); await clearPromptLogs(); await clearExperimentRuns(); }
     catch (error) { reportSecondaryFailure(error); }
   };
-  return <div role="alert" className="fixed top-16 left-4 right-4 z-[250] bg-gray-950 border border-yellow-400 rounded p-3 text-sm text-yellow-200">
+  return <div role="alert" className="fixed top-16 left-4 right-4 z-[250] bg-night border border-brass rounded p-3 text-sm text-brass">
     {warning} <button className="underline ml-2" onClick={resumeSecondaryCollection}>{translate("Retry collection")}</button>
     <button className="underline ml-2" onClick={removeSecondary}>{translate("Delete secondary data")}</button>
   </div>;

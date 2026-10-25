@@ -145,7 +145,7 @@ export function ErrorFallback({
         {/* Retry button */}
         <button
           onClick={resetError}
-          className="flex items-center gap-2 px-4 py-2 bg-city-accent hover:bg-city-accent-light text-city-text text-sm font-medium rounded-lg transition-colors shadow-lg shadow-city-accent/20"
+          className="flex items-center gap-2 px-4 py-2 bg-brass hover:bg-city-accent-light text-night text-sm font-medium rounded-lg transition-colors"
         >
           <RefreshIcon />{translate("Try Again")}</button>
 

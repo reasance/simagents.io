@@ -7,7 +7,7 @@ import { useDialogFocus } from '../../hooks/useDialogFocus';
  * D3.js force-directed graph visualization of agent relationships.
  * Shows:
  * - Agents as nodes (colored by LLM type)
- * - Edges for interactions (trade, harm, gossip)
+ * - Edges for speech, gifts, swaps and force
  * - Edge thickness based on interaction frequency
  * - Interactive: click nodes to select agent
  */
@@ -15,20 +15,18 @@ import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { useEffect, useRef, useMemo, useCallback, type ReactNode, type KeyboardEvent } from 'react';
 import { CanvasPanControls } from '../Canvas/CanvasPanControls';
 import * as d3 from 'd3';
-import { useAgents, useEvents, useWorldStore } from '../../stores/world';
+import { useAgents, useNotableEvents, useWorldStore, type WorldEvent } from '../../stores/world';
 import {
   useSocialGraphSettings,
   useVisualizationStore,
   type SocialEdgeType,
 } from '../../stores/visualization';
 
-// Edge type colors
 const EDGE_COLORS: Record<SocialEdgeType, string> = {
-  trade: '#10b981',    // Green
-  harm: '#ef4444',     // Red
-  gossip: '#8b5cf6',   // Purple
-  trust: '#06b6d4',    // Cyan
-  distrust: '#f97316', // Orange
+  speech: '#cfa65e',
+  gift: '#7fb59a',
+  swap: '#8fb8de',
+  force: '#e07a6a',
 };
 
 // Node interface for D3
@@ -57,7 +55,7 @@ export function SocialGraphView({ controls }: { controls?: (close: () => void) =
   const gRef = useRef<d3.Selection<SVGGElement, unknown, null, undefined> | null>(null);
 
   const agents = useAgents();
-  const events = useEvents();
+  const events = useNotableEvents();
   const { visible, edgeTypes } = useSocialGraphSettings();
   const selectedAgentId = useWorldStore((s) => s.selectedAgentId);
   const selectAgent = useWorldStore((s) => s.selectAgent);
@@ -94,52 +92,25 @@ export function SocialGraphView({ controls }: { controls?: (close: () => void) =
     // Create edges from events
     const edgeMap = new Map<string, GraphLink>();
 
-    // Map event types to edge types
-    const eventToEdgeType: Record<string, SocialEdgeType> = {
-      agent_trade: 'trade',
-      agent_traded: 'trade',
-      agent_harm: 'harm',
-      agent_harmed: 'harm',
-      agent_steal: 'harm',
-      agent_stole: 'harm',
-      agent_share_info: 'gossip',
-      agent_deceive: 'distrust',
-      agent_deceived: 'distrust',
-    };
-
-    // Process recent events to build edges
-    for (const event of events.slice(0, 100)) {
-      const edgeType = eventToEdgeType[event.type];
-      if (!edgeType) continue;
-
-      const sourceId = event.agentId;
-      let targetId = event.payload?.targetId as string | undefined;
-
-      // For some events, target is in different fields
-      if (!targetId) {
-        targetId = event.payload?.partnerId as string | undefined;
-        if (!targetId) continue;
+    // Who did what to whom, read from the notable-event log (directed, except swaps).
+    const pairs = (event: WorldEvent): Array<[string, string, SocialEdgeType]> => {
+      const p = event.payload ?? {}, source = event.agentId;
+      if (!source) return [];
+      switch (event.type) {
+        case 'agent_spoke': return typeof p.to === 'string' ? [[source, p.to, 'speech']] : (Array.isArray(p.listenerIds) ? p.listenerIds as string[] : []).map(id => [source, id, 'speech']);
+        case 'agent_gave': return typeof p.recipientId === 'string' ? [[source, p.recipientId, 'gift']] : [];
+        case 'agent_traded': return typeof p.targetId === 'string' ? [[source, p.targetId, 'swap']] : [];
+        case 'agent_harmed': case 'agent_stole': return typeof p.victimId === 'string' ? [[source, p.victimId, 'force']] : [];
+        default: return [];
       }
-
-      // Skip if edge type is filtered out
-      if (!edgeTypes.has(edgeType)) continue;
-
-      // Create edge key (bidirectional for some types)
-      const key =
-        edgeType === 'trade' || edgeType === 'gossip'
-          ? [sourceId, targetId].sort().join('-') + `-${edgeType}`
-          : `${sourceId}-${targetId}-${edgeType}`;
-
-      const existing = edgeMap.get(key);
-      if (existing) {
-        existing.weight += 1;
-      } else {
-        edgeMap.set(key, {
-          source: sourceId!,
-          target: targetId,
-          type: edgeType,
-          weight: 1,
-        });
+    };
+    for (const event of events) {
+      for (const [sourceId, targetId, edgeType] of pairs(event)) {
+        if (!edgeTypes.has(edgeType) || sourceId === targetId) continue;
+        const key = edgeType === 'swap' ? [sourceId, targetId].sort().join('-') + '-swap' : `${sourceId}-${targetId}-${edgeType}`;
+        const existing = edgeMap.get(key);
+        if (existing) existing.weight += 1;
+        else edgeMap.set(key, { source: sourceId, target: targetId, type: edgeType, weight: 1 });
       }
     }
 
@@ -321,19 +292,19 @@ export function SocialGraphView({ controls }: { controls?: (close: () => void) =
     // Add elements to new nodes
     nodeEnter
       .append('circle')
-      .attr('r', 15)
+      .attr('r', 12)
       .attr('fill', (d) => d.color)
-      .attr('stroke', '#333')
-      .attr('stroke-width', 1.5);
+      .attr('stroke', '#0b0f14')
+      .attr('stroke-width', 2);
 
     nodeEnter
       .append('text')
       .attr('text-anchor', 'middle')
-      .attr('dy', 4)
-      .attr('fill', d => nodeTextColor(d.color))
-      .attr('font-size', '10px')
-      .attr('font-weight', 'bold')
-      .text((d) => d.llmType.charAt(0).toUpperCase());
+      .attr('dy', -18)
+      .attr('fill', '#e4e8ee')
+      .attr('font-size', '12px')
+      .attr('font-family', "'IBM Plex Sans', sans-serif")
+      .text((d) => d.name ?? d.llmType);
 
     nodeEnter
       .append('rect')
@@ -342,7 +313,7 @@ export function SocialGraphView({ controls }: { controls?: (close: () => void) =
       .attr('y', 18)
       .attr('width', 24)
       .attr('height', 3)
-      .attr('fill', '#333')
+      .attr('fill', '#27313e')
       .attr('rx', 1);
 
     nodeEnter
@@ -355,13 +326,13 @@ export function SocialGraphView({ controls }: { controls?: (close: () => void) =
 
     nodeEnter.append('title');
     const nodeMerge = nodeEnter.merge(node);
-    nodeMerge.select('text').attr('fill', d => nodeTextColor(d.color));
+    nodeMerge.select('text').text(d => d.name ?? d.llmType);
     nodeMerge.select('title').text(d => `${d.name ?? d.llmType} · ${translate('Health')}: ${Math.round(d.health)}`);
 
     // Update health bars for all nodes
     nodeMerge.select('.health-bar')
       .attr('width', (d) => (d.health / 100) * 24)
-      .attr('fill', (d) => (d.health > 50 ? '#22c55e' : d.health > 20 ? '#f59e0b' : '#ef4444'));
+      .attr('fill', (d) => (d.health > 25 ? '#8a96a6' : '#e07a6a'));
 
     // Update positions on simulation tick
     simulation.on('tick', () => {
@@ -385,8 +356,8 @@ export function SocialGraphView({ controls }: { controls?: (close: () => void) =
     gRef.current.select('.nodes')
       .selectAll<SVGGElement, GraphNode>('g')
       .select('circle')
-      .attr('stroke', (d) => (d.id === selectedAgentId ? '#ffffff' : '#333'))
-      .attr('stroke-width', (d) => (d.id === selectedAgentId ? 3 : 1.5));
+      .attr('stroke', (d) => (d.id === selectedAgentId ? '#cfa65e' : '#0b0f14'))
+      .attr('stroke-width', (d) => (d.id === selectedAgentId ? 3 : 2));
   }, [selectedAgentId, visible]);
 
   if (!visible) return null;
@@ -398,7 +369,7 @@ export function SocialGraphView({ controls }: { controls?: (close: () => void) =
       aria-modal="true"
       aria-labelledby="social-graph-title"
       tabIndex={-1}
-      className="social-graph-dialog fixed inset-0 bg-city-bg/95 backdrop-blur-sm z-[210] flex min-h-0 flex-col overflow-hidden"
+      className="social-graph-dialog fixed inset-0 z-[210] flex min-h-0 flex-col overflow-hidden"
     >
       {controls && <div className="shrink-0">{controls(toggleSocialGraph)}</div>}
       {/* Header */}
@@ -427,11 +398,11 @@ export function SocialGraphView({ controls }: { controls?: (close: () => void) =
           </select>
         </label>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-city-text-muted">{translate('Edge Types:')}</span>
-          <EdgeTypeToggle type="trade" label={translate('Trade')} />
-          <EdgeTypeToggle type="harm" label={translate('Harm')} />
-          <EdgeTypeToggle type="gossip" label={translate('Gossip')} />
-          <EdgeTypeToggle type="distrust" label={translate('Deceive')} />
+          <span className="text-xs text-city-text-muted">{translate('Show')}</span>
+          <EdgeTypeToggle type="speech" label={translate('Speech')} />
+          <EdgeTypeToggle type="gift" label={translate('Gifts')} />
+          <EdgeTypeToggle type="swap" label={translate('Swaps')} />
+          <EdgeTypeToggle type="force" label={translate('Force')} />
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <CanvasPanControls move={moveView} reset={resetView} onKeyDown={handleViewKey} />
@@ -498,8 +469,3 @@ export function SocialGraphButton() {
   );
 }
 
-/** Pick a readable label color independently of an agent's chosen swatch. */
-function nodeTextColor(color: string) {
-  const channels = [1, 3, 5].map(index => parseInt(color.slice(index, index + 2), 16) / 255).map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
-  return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722 > 0.179 ? '#000000' : '#ffffff';
-}

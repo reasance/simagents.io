@@ -2,46 +2,44 @@ import { admissionConfig, relaySession, useRelaySession } from '../../services/r
 import { getEngineClient } from '../../engine-host/engine-client';
 import { useState } from 'react';
 import { useAppMode, useIsPaused } from '../../stores/editor';
-import { StartConfirmationModal } from './StartConfirmationModal';
 import { translate, useLocale } from '../../i18n';
 import { errorIssue, type AppIssue } from '@simagents/shared';
 import { formatIssue } from '../../i18n/errors';
+
 interface ModeControlsProps {
   stoppedByError?: boolean;
   mutationPending?: boolean;
-  onStartSimulation: (resumeSavedWorld?: boolean) => Promise<void>;
-  onReset: () => void;
+  /** Opens the guided setup; starting always goes through its review step. */
+  onSetup: () => void;
   onPause?: () => Promise<void>;
   onResume?: () => Promise<void>;
-  onOpenConfig?: () => void;
 }
-export function ModeControls({ onStartSimulation, onPause, onResume, onOpenConfig, stoppedByError, mutationPending }: ModeControlsProps) {
+
+export function ModeControls({ onSetup, onPause, onResume, stoppedByError, mutationPending }: ModeControlsProps) {
   useLocale();
   useRelaySession();
   const relayConfig = admissionConfig();
   const relayBlocked = !!relayConfig && getEngineClient().usesRelay(relayConfig.relayUrl) && !relaySession.getToken();
   const mode = useAppMode(), paused = useIsPaused();
-  const [loading, setLoading] = useState(false), [showStart, setShowStart] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<AppIssue>();
-  const confirmStart = async (choice: 'resume' | 'new') => {
-    setLoading(true); setError(undefined);
-    try { await onStartSimulation(choice === 'resume'); setShowStart(false); }
-    catch (cause) { setError(errorIssue(cause)); }
-    finally { setLoading(false); }
-  };
+  const ready = mode === 'editor';
+  const state = ready ? 'ready' : stoppedByError ? 'error' : paused ? 'paused' : 'running';
   const toggle = async () => {
     setLoading(true); setError(undefined);
     try { if (paused) await onResume?.(); else await onPause?.(); }
     catch (cause) { setError(errorIssue(cause)); }
     finally { setLoading(false); }
   };
-  return <div className="session-controls" aria-label={translate('Simulation controls')}>
-    <span className="session-state">{translate(mode === 'editor' ? 'Ready' : stoppedByError ? 'Error' : paused ? 'Paused' : 'Running')}</span>
-    <button className="session-primary" type="button" disabled={loading || (paused && relayBlocked) || (mode === 'editor' && mutationPending)} title={relayBlocked ? translate("Get relay access before resuming.") : undefined} onClick={mode === 'editor' ? () => setShowStart(true) : toggle}>
-      {translate(loading ? 'Starting…' : mode === 'editor' ? 'Start' : paused ? 'Resume' : 'Pause')}
+  return <div className="session-controls" role="group" aria-label={translate('Simulation controls')}>
+    <span className="session-state" data-state={state}><span className="dot" aria-hidden="true" /><span>{translate(state === 'ready' ? 'Ready' : state === 'error' ? 'Error' : state === 'paused' ? 'Paused' : 'Running')}</span></span>
+    {stoppedByError && !ready && <button type="button" className="btn btn-small hidden sm:inline-flex" disabled={loading || mutationPending} onClick={onSetup}>{translate('New session')}</button>}
+    <button className={ready || paused ? 'btn btn-primary' : 'btn'} type="button"
+      disabled={loading || (paused && !ready && relayBlocked) || (ready && mutationPending)}
+      title={relayBlocked ? translate('Get relay access before resuming.') : undefined}
+      onClick={ready ? onSetup : toggle}>
+      {translate(loading ? 'Working…' : ready ? 'Start' : paused ? 'Resume' : 'Pause')}
     </button>
-    {stoppedByError && mode !== 'editor' && <button type="button" className="session-new" disabled={loading || mutationPending} onClick={() => setShowStart(true)}>{translate("New session")}</button>}
-    {error && !showStart && <span role="alert">{formatIssue(error)}</span>}
-    <StartConfirmationModal isOpen={showStart} startIssue={error} onConfirm={confirmStart} onCancel={() => setShowStart(false)} onOpenConfig={() => { setShowStart(false); onOpenConfig?.(); }} isLoading={loading} />
+    {error && <span role="alert">{formatIssue(error)}</span>}
   </div>;
 }

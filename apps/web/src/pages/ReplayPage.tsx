@@ -1,3 +1,4 @@
+import { formatSimTime } from '../utils/format';
 import { formatActionLabel } from '../i18n';
 import { formatError } from '../i18n/errors';
 import { translateLabel, useLocale, translate } from '../i18n';
@@ -60,9 +61,8 @@ function TickSlider() {
   if (!tickRange) return null;
 
   return (
-    <div className="flex items-center gap-4 p-4 bg-city-surface border-b border-city-border">
-      <span className="text-xs text-city-text-muted w-16">{translate("Tick")}{" "}{tickRange.minTick}
-      </span>
+    <div className="flex items-center gap-4 px-[clamp(1rem,3vw,2rem)] py-3 border-b border-rule">
+      <span className="text-xs figure muted w-20">{formatSimTime(tickRange.minTick * 60_000)}</span>
       <input
         aria-label={translate("Saved replay frame")}
         type="range"
@@ -71,13 +71,10 @@ function TickSlider() {
         value={tickRange.availableTicks?.indexOf(currentTick) ?? 0}
         onChange={handleChange}
         disabled={isPlaying}
-        className="flex-1 h-2 bg-city-border rounded-lg appearance-none cursor-pointer accent-city-accent"
+        className="flex-1 cursor-pointer accent-brass"
       />
-      <span className="text-xs text-city-text-muted w-16 text-right">{translate("Tick")}{" "}{tickRange.maxTick}
-      </span>
-      <div className="px-3 py-1 bg-city-accent text-gray-950 text-sm font-mono rounded">
-        {currentTick}
-      </div>
+      <span className="text-xs figure muted w-20 text-right">{formatSimTime(tickRange.maxTick * 60_000)}</span>
+      <span className="badge badge-brass figure">{formatSimTime(currentTick * 60_000)}</span>
     </div>
   );
 }
@@ -160,12 +157,12 @@ function PlaybackControls() {
   }, [isPlaying, speed, setPlaying, setCurrentTick, setSnapshot, tickRange]);
 
   return (
-    <div className="flex items-center gap-2 p-4 bg-city-surface border-b border-city-border">
+    <div className="flex items-center gap-2 px-[clamp(1rem,3vw,2rem)] py-3 border-y border-rule bg-panel">
       {/* Step backward */}
       <button
         onClick={() => step(-1)}
         disabled={isPlaying}
-        className="p-2 rounded hover:bg-city-border disabled:opacity-50"
+        className="btn btn-quiet !px-3"
         title={translate("Previous tick")}
       >
         <svg className="w-5 h-5 text-city-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -176,7 +173,7 @@ function PlaybackControls() {
       {/* Play/Pause */}
       <button
         onClick={togglePlay}
-        className="p-2 rounded bg-city-accent hover:bg-city-accent/80 text-gray-950"
+        className="btn btn-primary !px-3"
         title={isPlaying ? translate("Pause") : translate("Play")}
       >
         {isPlaying ? (
@@ -194,7 +191,7 @@ function PlaybackControls() {
       <button
         onClick={() => step(1)}
         disabled={isPlaying}
-        className="p-2 rounded hover:bg-city-border disabled:opacity-50"
+        className="btn btn-quiet !px-3"
         title={translate("Next tick")}
       >
         <svg className="w-5 h-5 text-city-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -205,7 +202,7 @@ function PlaybackControls() {
       {/* Speed control */}
       <button
         onClick={cycleSpeed}
-        className="px-3 py-1 rounded bg-city-border hover:bg-city-border/80 text-city-text text-sm font-mono"
+        className="btn btn-small figure"
         title={translate("Change playback speed")}
       >
         {speed}{" "}{translate("x")}</button>
@@ -219,7 +216,7 @@ function PlaybackControls() {
           exitReplayMode();
           setMode(getEngineClient().isRunning() ? 'simulation' : 'editor');
         }}
-        className="px-3 py-1.5 rounded bg-city-surface border border-city-border hover:bg-city-border text-city-text text-sm"
+        className="btn btn-small"
       >{translate("Exit Replay")}</button>
     </div>
   );
@@ -262,11 +259,11 @@ function ReplayCanvas() {
     const cellSize = Math.min(width, height) / gridSize;
 
     // Clear
-    ctx.fillStyle = '#1a1a2e';
+    ctx.fillStyle = '#0f141b';
     ctx.fillRect(0, 0, width, height);
 
     // Draw grid lines (faint)
-    ctx.strokeStyle = '#2a2a4e';
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
     ctx.lineWidth = 0.5;
     for (let i = 0; i <= gridSize; i++) {
       ctx.beginPath();
@@ -285,9 +282,9 @@ function ReplayCanvas() {
       const y = spawn.y * cellSize + cellSize / 2;
       const fillPercent = spawn.currentAmount / spawn.maxAmount;
 
-      let color = '#22c55e'; // green for food
-      if (spawn.resourceType === 'energy') color = '#eab308'; // yellow
-      if (spawn.resourceType === 'material') color = '#8b5cf6'; // purple
+      let color = '#6f9e7c';
+      if (spawn.resourceType === 'energy') color = '#9a9460';
+      if (spawn.resourceType === 'material') color = '#8a7563';
 
       ctx.beginPath();
       ctx.arc(x, y, cellSize * 0.4, 0, Math.PI * 2);
@@ -302,10 +299,9 @@ function ReplayCanvas() {
       const x = shelter.x * cellSize;
       const y = shelter.y * cellSize;
 
-      ctx.fillStyle = '#3b82f6';
-      ctx.globalAlpha = 0.5;
-      ctx.fillRect(x + 2, y + 2, cellSize - 4, cellSize - 4);
-      ctx.globalAlpha = 1;
+      ctx.strokeStyle = '#8a96a6';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 1, y + 1, cellSize - 2, cellSize - 2);
     }
 
     // Draw agents
@@ -317,21 +313,21 @@ function ReplayCanvas() {
       // Agent circle
       ctx.beginPath();
       ctx.arc(x, y, cellSize * 0.35, 0, Math.PI * 2);
-      ctx.fillStyle = getLLMColor(agent.llmType);
+      ctx.fillStyle = (agent as { color?: string }).color ?? '#b7c0cc';
       ctx.fill();
 
       // Selection ring
       if (isSelected) {
         ctx.beginPath();
         ctx.arc(x, y, cellSize * 0.45, 0, Math.PI * 2);
-        ctx.strokeStyle = '#fff';
+        ctx.strokeStyle = '#cfa65e';
         ctx.lineWidth = 2;
         ctx.stroke();
       }
 
       // Health bar
       const healthPercent = agent.health / 100;
-      ctx.fillStyle = healthPercent > 0.5 ? '#22c55e' : healthPercent > 0.25 ? '#eab308' : '#ef4444';
+      ctx.fillStyle = healthPercent > 0.25 ? '#8a96a6' : '#e07a6a';
       ctx.fillRect(x - cellSize * 0.3, y + cellSize * 0.4, cellSize * 0.6 * healthPercent, 3);
     }
   }, [snapshot, selectedAgentId]);
@@ -385,7 +381,7 @@ function ReplayCanvas() {
       width={600}
       height={600}
       onClick={handleClick}
-      className="border border-city-border rounded cursor-pointer w-full max-w-[600px] h-auto"
+      className="border border-rule rounded-lg cursor-pointer w-full max-w-[600px] h-auto"
     />
   </div>;
 }
@@ -445,13 +441,13 @@ function EventTimeline() {
   }
 
   return (
-    <div tabIndex={0} aria-label={translate("Replay events")} className="p-4 space-y-2 max-h-[300px] overflow-y-auto">
+    <div role="region" tabIndex={0} aria-label={translate("Replay events")} className="p-4 space-y-2 max-h-[300px] overflow-y-auto">
       <h3 className="text-sm font-semibold text-city-text mb-2">{translate("Events at Tick")}{" "}{snapshot?.tick}
       </h3>
       {events.map((event) => (
         <div
           key={event.id}
-          className="p-2 bg-city-border/30 rounded text-xs"
+          className="p-3 border-b border-rule text-xs"
         >
           <div className="flex items-center justify-between mb-1">
             <span className="font-medium text-city-text">
@@ -463,8 +459,8 @@ function EventTimeline() {
               </span>
             )}
           </div>
-          <pre tabIndex={0} className="text-city-text-muted text-xs overflow-x-auto">
-            {JSON.stringify(event.payload, null, 2).slice(0, 100)}
+          <pre tabIndex={0} className="figure muted text-xs overflow-x-auto m-0 mt-1 whitespace-pre-wrap break-all">
+            {JSON.stringify(event.payload).slice(0, 240)}
           </pre>
         </div>
       ))}
@@ -507,28 +503,28 @@ function AgentStatePanel() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-2 text-xs">
-        <div className="p-2 bg-city-border/30 rounded">
+      <div className="stat-grid text-sm">
+        <div className="stat">
           <div className="text-city-text-muted">{translate("Position")}</div>
           <div className="text-city-text font-mono">({agent.x}, {agent.y})</div>
         </div>
-        <div className="p-2 bg-city-border/30 rounded">
+        <div className="stat">
           <div className="text-city-text-muted">{translate("State")}</div>
           <div className="text-city-text">{formatActionLabel(agent.state)}</div>
         </div>
-        <div className="p-2 bg-city-border/30 rounded">
+        <div className="stat">
           <div className="text-city-text-muted">{translate("Health")}</div>
           <div className="text-city-text">{agent.health}%</div>
         </div>
-        <div className="p-2 bg-city-border/30 rounded">
+        <div className="stat">
           <div className="text-city-text-muted">{translate("Energy")}</div>
           <div className="text-city-text">{agent.energy}%</div>
         </div>
-        <div className="p-2 bg-city-border/30 rounded">
+        <div className="stat">
           <div className="text-city-text-muted">{translate("Hunger")}</div>
           <div className="text-city-text">{agent.hunger}%</div>
         </div>
-        <div className="p-2 bg-city-border/30 rounded">
+        <div className="stat">
           <div className="text-city-text-muted">{translate("Balance")}</div>
           <div className="text-city-text">{agent.balance} CITY</div>
         </div>
@@ -538,13 +534,13 @@ function AgentStatePanel() {
       {timeline.length > 0 && (
         <div className="space-y-2">
           <h4 className="text-sm font-medium text-city-text">{translate("Recent Actions")}</h4>
-          <div tabIndex={0} aria-label={translate("Recent Actions")} className="max-h-[200px] overflow-y-auto space-y-1">
+          <div role="region" tabIndex={0} aria-label={translate("Recent Actions")} className="max-h-[200px] overflow-y-auto space-y-1">
             {timeline.slice(0, 20).map((entry, i) => (
               <div
                 key={i}
                 className={`p-2 rounded text-xs ${
                   entry.success === false
-                    ? 'bg-red-500/10 border border-red-500/30'
+                    ? 'bg-alert/10 border border-alert/30'
                     : 'bg-city-border/30'
                 }`}
               >
@@ -614,10 +610,10 @@ export function ReplayPage() {
     return (
       <div className="min-h-screen bg-city-bg flex items-center justify-center">
         <div className="text-center">
-          <div className="text-red-500 mb-4">{formatError(error)}</div>
+          <div className="text-alert mb-4">{formatError(error)}</div>
           <button
             onClick={loadInitialData}
-            className="px-4 py-2 bg-city-accent text-gray-950 rounded hover:bg-city-accent/80"
+            className="px-4 py-2 bg-city-accent text-night rounded hover:bg-city-accent/80"
           >{translate("Retry")}</button>
           <button className="ml-3 underline" onClick={() => useEditorStore.getState().setMode('editor')}>{translate("Exit replay")}</button>
         </div>
@@ -626,28 +622,19 @@ export function ReplayPage() {
   }
 
   return (
-    <div className="feature-page min-h-full bg-city-bg flex flex-col">
-      {/* Header */}
-      <div className="feature-header bg-city-surface border-b border-city-border p-4">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-city-accent rounded-md flex items-center justify-center">
-            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <h1 className="text-base font-semibold text-city-text">{translate("Sim Agents")}</h1>
-          <span className="text-xs text-city-text-muted">{translate("Time Travel Replay")}</span>
-        </div>
-      </div>
-
-      <p role="note" className="p-3 text-sm text-city-text-muted">{translate("Saved replay:")}{" "}{range?.availableTicks?.length ?? 0}{" "}{translate("frames;")}{" "}{range?.missingTicks ?? 0}{" "}{translate("missing ticks inside the saved range. Events per frame are bounded; this is not a complete event archive.")}{" "}{!!range?.unscopedFrames && translate("{count} legacy frames have no world identity; their association cannot be verified.", { count: range.unscopedFrames })}</p>
+    <div className="feature-page overflow-y-auto">
+      <header className="feature-header">
+        <div><span className="engraved">{translate("Observer only")}</span><h1>{translate("Replay")}</h1>
+          <p className="hint m-0 mt-1 max-w-2xl">{translate("Step through saved frames of this world. The live world stays paused while you look back.")}</p></div>
+      </header>
+      <p role="note" className="hint px-[clamp(1rem,3vw,2rem)] pb-3 m-0">{translate("Saved replay:")}{" "}{range?.availableTicks?.length ?? 0}{" "}{translate("frames;")}{" "}{range?.missingTicks ?? 0}{" "}{translate("missing ticks inside the saved range. Events per frame are bounded; this is not a complete event archive.")}{" "}{!!range?.unscopedFrames && translate("{count} legacy frames have no world identity; their association cannot be verified.", { count: range.unscopedFrames })}</p>
       {/* Controls */}
       <PlaybackControls />
       <TickSlider />
 
       <ReplayEntitySelector />
       {/* Main content */}
-      <div className="flex-1 flex flex-col lg:flex-row p-4 gap-4 min-w-0">
+      <div className="flex-1 flex flex-col lg:flex-row px-[clamp(1rem,3vw,2rem)] py-4 gap-4 min-w-0">
         {/* Left: Canvas */}
         <div className="w-full lg:w-auto lg:flex-shrink-0 min-w-0">
           <ReplayCanvas />
@@ -656,12 +643,12 @@ export function ReplayPage() {
         {/* Right: Sidebar */}
         <div className="flex-1 flex flex-col gap-4 min-w-0">
           {/* Agent panel */}
-          <div className="bg-city-surface border border-city-border rounded-lg flex-1 overflow-hidden">
+          <div className="surface flex-1 overflow-hidden">
             <AgentStatePanel />
           </div>
 
           {/* Event timeline */}
-          <div className="bg-city-surface border border-city-border rounded-lg max-h-[300px] overflow-hidden">
+          <div className="surface max-h-[300px] overflow-hidden">
             <EventTimeline />
           </div>
         </div>

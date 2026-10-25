@@ -30,13 +30,6 @@ import type {
   BrowserExperimentSummary,
 } from '../services/experiments';
 import type { AgentTimelineEntry, TickRange, WorldSnapshot } from '../stores/replay';
-import type {
-  PuzzleDetails,
-  PuzzleFilter,
-  PuzzleGame,
-  PuzzleResults,
-  PuzzleStats,
-} from '../stores/puzzles';
 import type { WorldEvent } from '../stores/world';
 import { worldEventToReplayEvent } from './replay-events';
 
@@ -212,14 +205,6 @@ async function handleCommand(command: WorkerCommand): Promise<unknown> {
       return getReplayFrame(command.tick);
     case 'getAgentTimeline':
       return getAgentTimeline(command.agentId, command.limit);
-    case 'getPuzzles':
-      return getPuzzles(command.filter ?? 'all');
-    case 'getPuzzleDetails':
-      return getPuzzleDetails(command.puzzleId);
-    case 'getPuzzleResults':
-      return getPuzzleResults(command.puzzleId);
-    case 'getPuzzleStats':
-      return getPuzzleStats();
     case 'runExperiment':
       return await runExperiment(command.definition);
     case 'cancelExperiment':
@@ -489,152 +474,6 @@ function describeTimelineEvent(event: WorldEvent): string {
   return event.type.replace(/_/g, ' ');
 }
 
-function getPuzzles(filter: PuzzleFilter): PuzzleGame[] {
-  const puzzles = [...engineStore.puzzleGames.values()].map((puzzle) => ({
-    id: puzzle.id,
-    gameType: puzzle.gameType,
-    status: puzzle.status as PuzzleGame['status'],
-    prizePool: puzzle.prizePool,
-    entryStake: puzzle.entryStake,
-    startsAtTick: puzzle.startsAtTick ?? puzzle.createdAtTick,
-    endsAtTick: puzzle.endsAtTick ?? puzzle.createdAtTick,
-    participantCount: [...engineStore.puzzleParticipants.values()].filter((p) => p.gameId === puzzle.id).length,
-    fragmentCount: puzzle.fragmentCount,
-    winnerId: puzzle.winnerId,
-  }));
-  if (filter === 'all') return puzzles;
-  if (filter === 'active') return puzzles.filter((puzzle) => puzzle.status === 'open' || puzzle.status === 'active');
-  return puzzles.filter((puzzle) => puzzle.status === filter);
-}
-
-function getPuzzleDetails(puzzleId: string): PuzzleDetails {
-  const puzzle = engineStore.puzzleGames.get(puzzleId);
-  if (!puzzle) throw new Error('Puzzle not found');
-  const isCompleted = puzzle.status === 'completed';
-  return {
-    puzzle: { ...getPuzzles('all').find((item) => item.id === puzzleId)!, solution: isCompleted ? puzzle.solution ?? null : null },
-    participants: [...engineStore.puzzleParticipants.values()]
-      .filter((participant) => participant.gameId === puzzleId)
-      .map((participant) => {
-        const agent = engineStore.agents.get(participant.agentId);
-        return {
-          id: participant.id,
-          agentId: participant.agentId,
-          agentName: agent?.name ?? agent?.llmType ?? participant.agentId,
-          agentColor: agent?.color ?? '#888888',
-          teamId: participant.teamId,
-          stakeAmount: participant.stakedAmount,
-          contributionScore: participant.contributionScore,
-          fragmentsShared: participant.fragmentsShared,
-          attemptsMade: participant.attemptsMade,
-        };
-      }),
-    teams: [...engineStore.puzzleTeams.values()]
-      .filter((team) => team.gameId === puzzleId)
-      .map((team) => {
-        const leader = engineStore.agents.get(team.leaderId);
-        const members = [...engineStore.puzzleParticipants.values()]
-          .filter((participant) => participant.teamId === team.id)
-          .map((participant) => {
-            const agent = engineStore.agents.get(participant.agentId);
-            return {
-              agentId: participant.agentId,
-              agentName: agent?.name ?? agent?.llmType ?? participant.agentId,
-              agentColor: agent?.color ?? '#888888',
-              contributionScore: participant.contributionScore,
-              fragmentsShared: participant.fragmentsShared,
-            };
-          });
-        return {
-          id: team.id,
-          name: team.name ?? 'Team',
-          status: team.status,
-          totalStake: team.totalStake,
-          leader: leader ? { id: leader.id, name: leader.name ?? leader.llmType } : null,
-          members,
-          memberCount: members.length,
-        };
-      }),
-    fragments: [...engineStore.puzzleFragments.values()]
-      .filter((fragment) => fragment.gameId === puzzleId)
-      .map((fragment) => {
-        const owner = fragment.ownerId ? engineStore.agents.get(fragment.ownerId) : undefined;
-        const originalOwner = fragment.originalOwnerId ? engineStore.agents.get(fragment.originalOwnerId) : undefined;
-        return {
-          id: fragment.id,
-          fragmentIndex: fragment.fragmentIndex,
-          content: isCompleted ? fragment.content : '',
-          owner: owner ? { id: owner.id, name: owner.name ?? owner.llmType, color: owner.color } : null,
-          originalOwner: originalOwner ? { id: originalOwner.id, name: originalOwner.name ?? originalOwner.llmType } : null,
-          sharedWith: fragment.sharedWith.map((agentId) => {
-            const agent = engineStore.agents.get(agentId);
-            return { agentId, agentName: agent?.name ?? agent?.llmType ?? agentId };
-          }),
-          sharedCount: fragment.sharedWith.length,
-        };
-      }),
-  };
-}
-
-function getPuzzleResults(puzzleId: string): PuzzleResults {
-  const details = getPuzzleDetails(puzzleId);
-  const attempts = [...engineStore.puzzleAttempts.values()]
-    .filter((attempt) => attempt.gameId === puzzleId)
-    .map((attempt) => {
-      const agent = engineStore.agents.get(attempt.submitterId);
-      return {
-        id: attempt.id,
-        submitterId: attempt.submitterId,
-        submitterName: agent?.name ?? agent?.llmType ?? attempt.submitterId,
-        attemptedSolution: attempt.attemptedSolution,
-        isCorrect: attempt.isCorrect,
-        submittedAtTick: attempt.submittedAtTick,
-      };
-    });
-  const winningAttempt = attempts.find((attempt) => attempt.isCorrect) ?? null;
-  return {
-    puzzle: {
-      id: details.puzzle.id,
-      gameType: details.puzzle.gameType,
-      status: details.puzzle.status,
-      prizePool: details.puzzle.prizePool,
-      solution: details.puzzle.solution,
-    },
-    winner: winningAttempt
-      ? {
-          agentId: winningAttempt.submitterId,
-          agentName: winningAttempt.submitterName,
-          solution: winningAttempt.attemptedSolution,
-          submittedAtTick: winningAttempt.submittedAtTick,
-        }
-      : null,
-    attempts,
-    prizeDistribution: details.participants.map((participant) => ({
-      agentId: participant.agentId,
-      agentName: participant.agentName,
-      contributionScore: participant.contributionScore,
-      fragmentsShared: participant.fragmentsShared,
-      attemptsMade: participant.attemptsMade,
-      prizeAmount: (engineStore.puzzleGames.get(puzzleId)?.prizeDistribution ?? []).filter((p) => p.agentId === participant.agentId).reduce((sum, p) => sum + p.amount, 0),
-      isWinner: winningAttempt?.submitterId === participant.agentId,
-    })),
-  };
-}
-
-function getPuzzleStats(): PuzzleStats {
-  const puzzles = getPuzzles('all');
-  const totalParticipants = [...engineStore.puzzleParticipants.values()].length;
-  return {
-    totalGames: puzzles.length,
-    activeGames: puzzles.filter((puzzle) => puzzle.status === 'open' || puzzle.status === 'active').length,
-    completedGames: puzzles.filter((puzzle) => puzzle.status === 'completed').length,
-    expiredGames: puzzles.filter((puzzle) => puzzle.status === 'expired').length,
-    totalPrizeDistributed: puzzles
-      .filter((puzzle) => puzzle.status === 'completed')
-      .reduce((sum, puzzle) => sum + (engineStore.puzzleGames.get(puzzle.id)?.prizeDistribution ?? []).reduce((total, p) => total + p.amount, 0), 0),
-    averageParticipants: puzzles.length === 0 ? 0 : totalParticipants / puzzles.length,
-  };
-}
 
 async function runExperiment(definition: BrowserExperimentDefinition): Promise<BrowserExperimentRun> {
   if (activeExperimentRun?.status === 'running') {

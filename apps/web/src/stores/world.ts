@@ -18,7 +18,22 @@ export interface Agent {
   state: string;
   color: string;
   personality?: string | null;
+  /** Roster entry the agent was spawned from (observer-only metadata). */
+  rosterEntryId?: string;
+  /** The agent's own private notes; shown to the observer, never to other agents. */
+  privateNotes?: string;
 }
+
+/** Events that say something about how agents relate to each other or survive. */
+export const NOTABLE_EVENT_TYPES = new Set([
+  'agent_spoke', 'agent_gave', 'agent_harmed', 'agent_stole', 'agent_traded', 'agent_name_location',
+  'agent_died', 'agent_undecided', 'agent_unresponsive',
+]);
+const NOTABLE_LIMIT = 300;
+const DECISIONS_PER_AGENT = 20;
+/** A decision is the present-tense action event (it carries reasoning), or a failed or undecided turn. */
+export const isDecisionEvent = (event: WorldEvent) =>
+  event.type === 'action_failed' || event.type === 'agent_undecided' || (typeof event.payload?.action === 'string' && event.type === `agent_${event.payload.action}`);
 
 export interface Location {
   id: string;
@@ -79,11 +94,16 @@ export interface AgentBubble {
 interface WorldState {
   // World data
   tick: number;
+  simTimeMs: number;
   agents: Agent[];
   locations: Location[]; // Legacy - for backwards compatibility
   resourceSpawns: ResourceSpawn[]; // Scientific model
   shelters: Shelter[]; // Scientific model
   events: WorldEvent[];
+  /** Speech, gifts, force, deaths: kept longer than the raw event window. */
+  notable: WorldEvent[];
+  /** Latest decisions per agent, newest first. */
+  decisions: Record<string, WorldEvent[]>;
   bubbles: AgentBubble[];
 
   // UI state
@@ -98,6 +118,7 @@ interface WorldState {
   setWorldState: (state: { tick: number; agents: Agent[]; locations?: Location[]; resourceSpawns?: ResourceSpawn[]; shelters?: Shelter[] }) => void;
   updateWorldState: (state: { tick: number; agents: Agent[]; locations?: Location[]; resourceSpawns?: ResourceSpawn[]; shelters?: Shelter[] }) => void;
   setTick: (tick: number) => void;
+  setSimTime: (simTimeMs: number) => void;
   updateAgent: (id: string, updates: Partial<Agent>) => void;
   updateResourceSpawn: (id: string, updates: Partial<ResourceSpawn>) => void;
   addEvent: (event: WorldEvent) => void;
@@ -121,11 +142,14 @@ const BUBBLE_DURATION = 3000;
 export const useWorldStore = create<WorldState>((set) => ({
   // Initial state
   tick: 0,
+  simTimeMs: 0,
   agents: [],
   locations: [],
   resourceSpawns: [],
   shelters: [],
   events: [],
+  notable: [],
+  decisions: {},
   bubbles: [],
   selectedAgentId: null,
   selectedLocationId: null,
@@ -143,6 +167,8 @@ export const useWorldStore = create<WorldState>((set) => ({
       resourceSpawns: state.resourceSpawns ?? [],
       shelters: state.shelters ?? [],
       events: [], // Clear events on new world state
+      notable: [],
+      decisions: {},
       bubbles: [], // Clear bubbles on new world state
     }),
 
@@ -158,6 +184,7 @@ export const useWorldStore = create<WorldState>((set) => ({
     }),
 
   setTick: (tick) => set({ tick }),
+  setSimTime: (simTimeMs) => set({ simTimeMs }),
 
   updateAgent: (id, updates) =>
     set((state) => ({
@@ -172,9 +199,19 @@ export const useWorldStore = create<WorldState>((set) => ({
   addEvent: (event) =>
     set((state) => ({
       events: [event, ...state.events].slice(0, 100), // Keep last 100 events
+      ...(NOTABLE_EVENT_TYPES.has(event.type) && { notable: [event, ...state.notable].slice(0, NOTABLE_LIMIT) }),
+      ...(event.agentId && isDecisionEvent(event) && { decisions: { ...state.decisions, [event.agentId]: [event, ...(state.decisions[event.agentId] ?? [])].slice(0, DECISIONS_PER_AGENT) } }),
     })),
 
-  setEvents: (events) => set({ events }),
+  setEvents: (events) => {
+    const decisions: Record<string, WorldEvent[]> = {};
+    for (const event of events) {
+      if (!event.agentId || !isDecisionEvent(event)) continue;
+      const list = (decisions[event.agentId] ??= []);
+      if (list.length < DECISIONS_PER_AGENT) list.push(event);
+    }
+    set({ events, decisions, notable: events.filter((event) => NOTABLE_EVENT_TYPES.has(event.type)).slice(0, NOTABLE_LIMIT) });
+  },
 
   addBubble: (bubble) =>
     set((state) => {
@@ -216,11 +253,14 @@ export const useWorldStore = create<WorldState>((set) => ({
   resetWorld: () =>
     set({
       tick: 0,
+      simTimeMs: 0,
       agents: [],
       locations: [],
       resourceSpawns: [],
       shelters: [],
       events: [],
+      notable: [],
+      decisions: {},
       bubbles: [],
       selectedAgentId: null,
       selectedLocationId: null,
@@ -285,3 +325,8 @@ export const useResourceSpawns = () =>
 
 export const useShelters = () =>
   useWorldStore(useShallow((state) => state.shelters));
+
+export const useNotableEvents = () => useWorldStore((state) => state.notable);
+const NO_DECISIONS: WorldEvent[] = [];
+export const useAgentDecisions = (agentId: string) => useWorldStore((state) => state.decisions[agentId] ?? NO_DECISIONS);
+export const useSimTime = () => useWorldStore((state) => state.simTimeMs);

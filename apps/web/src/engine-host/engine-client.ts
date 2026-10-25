@@ -18,13 +18,6 @@ import {
   type BrowserExperimentRun,
 } from '../services/experiments';
 import type { AgentTimelineEntry, TickRange, WorldSnapshot } from '../stores/replay';
-import type {
-  PuzzleDetails,
-  PuzzleFilter,
-  PuzzleGame,
-  PuzzleResults,
-  PuzzleStats,
-} from '../stores/puzzles';
 import type { WorldEvent } from '../stores/world';
 
 export interface EngineInitPayload {
@@ -60,10 +53,6 @@ export type WorkerCommand =
   | { cmd: 'getReplayRange'; requestId: string }
   | { cmd: 'getReplayFrame'; requestId: string; tick: number }
   | { cmd: 'getAgentTimeline'; requestId: string; agentId: string; limit?: number }
-  | { cmd: 'getPuzzles'; requestId: string; filter?: PuzzleFilter }
-  | { cmd: 'getPuzzleDetails'; requestId: string; puzzleId: string }
-  | { cmd: 'getPuzzleResults'; requestId: string; puzzleId: string }
-  | { cmd: 'getPuzzleStats'; requestId: string }
   | { cmd: 'runExperiment'; requestId: string; definition: BrowserExperimentDefinition }
   | { cmd: 'cancelExperiment'; requestId: string; runId?: string }
   | { cmd: 'getExperimentStatus'; requestId: string; runId?: string }
@@ -250,21 +239,7 @@ export class EngineClient {
     return replay.fetchAgentTimeline(agentId, limit);
   }
 
-  async getPuzzles(filter: PuzzleFilter = 'all'): Promise<PuzzleGame[]> {
-    return this.request<PuzzleGame[]>((requestId) => ({ cmd: 'getPuzzles', requestId, filter }));
-  }
 
-  async getPuzzleDetails(puzzleId: string): Promise<PuzzleDetails> {
-    return this.request<PuzzleDetails>((requestId) => ({ cmd: 'getPuzzleDetails', requestId, puzzleId }));
-  }
-
-  async getPuzzleResults(puzzleId: string): Promise<PuzzleResults> {
-    return this.request<PuzzleResults>((requestId) => ({ cmd: 'getPuzzleResults', requestId, puzzleId }));
-  }
-
-  async getPuzzleStats(): Promise<PuzzleStats> {
-    return this.request<PuzzleStats>((requestId) => ({ cmd: 'getPuzzleStats', requestId }));
-  }
 
   async runExperiment(definition: BrowserExperimentDefinition): Promise<BrowserExperimentRun> {
     if (definition.id || definition.name) await saveExperimentDefinition(definition);

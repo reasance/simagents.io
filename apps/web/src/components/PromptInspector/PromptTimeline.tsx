@@ -50,7 +50,7 @@ export function PromptTimeline() {
   if (timelineError) {
     return (
       <div className="h-full flex flex-col items-center justify-center p-4">
-        <p className="text-red-400 text-sm mb-2">{formatError(timelineError)}</p>
+        <p className="text-alert text-sm mb-2">{formatError(timelineError)}</p>
         <button
           onClick={() => fetchTimeline(selectedAgentId)}
           className="text-city-text-muted hover:text-city-text text-xs underline"
@@ -110,10 +110,10 @@ export function PromptTimeline() {
                 </span>
                 <div className="flex items-center gap-1">
                   {isFallback && (
-                    <span className="px-1.5 py-0.5 bg-amber-500/20 text-amber-400 text-[10px] rounded" title={translate("Fallback decision")}>{translate("F")}</span>
+                    <span className="px-1.5 py-0.5 bg-brass/15 text-brass text-[10px] rounded" title={translate("Fallback decision")}>{translate("F")}</span>
                   )}
                   {isCache && (
-                    <span className="px-1.5 py-0.5 bg-blue-500/20 text-blue-400 text-[10px] rounded" title={translate("Cache hit")}>{translate("C")}</span>
+                    <span className="px-1.5 py-0.5 bg-raised text-star text-[10px] rounded" title={translate("Cache hit")}>{translate("C")}</span>
                   )}
                 </div>
               </div>

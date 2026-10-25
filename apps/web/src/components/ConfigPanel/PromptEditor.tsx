@@ -17,8 +17,6 @@ import { usePromptStore } from '../../stores/promptStore';
 export function PromptEditor() {
   useLocale();
   const {
-    customPrompt,
-    defaultPrompt,
     pendingPrompt,
     placeholders,
     isLoading,
@@ -45,21 +43,8 @@ export function PromptEditor() {
     }
   }, [isSynced, fetchPrompt]);
 
-  // Determine badge
-  const getBadge = () => {
-    if (hasJsonErrors()) {
-      return { text: 'JSON Error', color: 'bg-red-800 text-red-200' };
-    }
-    if (hasPendingChanges()) {
-      return { text: 'Unsaved', color: 'bg-yellow-800 text-yellow-200' };
-    }
-    if (isUsingCustom()) {
-      return { text: 'Custom', color: 'bg-blue-800 text-blue-200' };
-    }
-    return { text: 'Default', color: 'bg-gray-700 text-gray-400' };
-  };
-
-  const badge = getBadge();
+  const badge = hasJsonErrors() ? { text: 'JSON Error', tone: 'badge-alert' } : hasPendingChanges() ? { text: 'Unsaved', tone: 'badge-brass' }
+    : isUsingCustom() ? { text: 'Custom', tone: 'badge-ok' } : { text: 'Default', tone: '' };
 
   const handleReset = async () => {
     if (showResetConfirm) {
@@ -79,132 +64,51 @@ export function PromptEditor() {
   const minRows = Math.min(Math.max(lineCount, 10), 30);
 
   return (
-    <div className="py-3 px-4">
-      {/* Header row: Title + Badge */}
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-medium text-gray-200">{translate("System Prompt")}</span>
-        <span className={`text-xs px-2 py-0.5 rounded ${badge.color}`}>
-          {translateLabel(badge.text)}
-        </span>
+    <div className="grid gap-3">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium">{translate("System Prompt")}</span>
+        <span className={`badge ${badge.tone}`}>{translateLabel(badge.text)}</span>
       </div>
-
-      {/* Error display */}
-      {error && (
-        <div className="mb-3 p-2 rounded bg-red-900/30 border border-red-700/50 text-xs text-red-300">
-          {error}
-        </div>
-      )}
-
-      {/* Warning display */}
-      {warning && (
-        <div className="mb-3 p-2 rounded bg-yellow-900/30 border border-yellow-700/50 text-xs text-yellow-300">
-          {warning}
-        </div>
-      )}
-
-      {/* Text area */}
-      <div className="mb-3">
-        <textarea
-          value={pendingPrompt}
-          onChange={(e) => setPendingPrompt(e.target.value)}
-          disabled={isLoading}
-          rows={minRows}
-          className={`w-full bg-gray-900 border rounded px-3 py-2 text-xs text-gray-200 font-mono leading-relaxed placeholder-gray-500 focus:outline-none focus:ring-1 disabled:opacity-50 disabled:cursor-not-allowed resize-y ${
-            hasJsonErrors()
-              ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
-              : hasPendingChanges()
-              ? 'border-yellow-500 focus:ring-yellow-500 focus:border-yellow-500'
-              : 'border-gray-600 focus:ring-blue-500 focus:border-blue-500'
-          }`}
-          placeholder={translate("Enter your custom system prompt...")}
-        />
-      </div>
-
-      {/* JSON validation errors */}
+      <p className="hint m-0">{translate("The default prompt describes only the world's physics. A custom prompt replaces it for every agent.")}</p>
+      {error && <p role="alert" className="notice notice-alert m-0">{error}</p>}
+      {warning && <p role="status" className="notice m-0">{warning}</p>}
+      <label className="field">
+        <span className="sr-only">{translate("System Prompt")}</span>
+        <textarea value={pendingPrompt} onChange={(e) => setPendingPrompt(e.target.value)} disabled={isLoading} rows={minRows}
+          aria-invalid={hasJsonErrors()} placeholder={translate("Enter your custom system prompt...")} />
+      </label>
       {jsonErrors.length > 0 && (
-        <div className="mb-3 p-2 rounded bg-red-900/30 border border-red-700/50">
-          <div className="text-xs font-medium text-red-300 mb-2">{translate("JSON Validation Errors (")}{jsonErrors.length})
-          </div>
-          <div className="space-y-2 max-h-32 overflow-y-auto">
+        <div className="notice notice-alert">
+          <div className="text-sm font-medium mb-2">{translate("JSON Validation Errors (")}{jsonErrors.length})</div>
+          <div className="grid gap-2 max-h-32 overflow-y-auto">
             {jsonErrors.map((err, idx) => (
-              <div key={idx} className="text-xs text-red-200/80">
-                <div className="font-medium">{translate("Block")}{" "}{err.blockIndex + 1}{" "}{translate("(line")}{" "}{err.lineNumber}): {err.error}
-                </div>
-                <div className="text-red-300/60 font-mono text-[10px] mt-0.5 truncate">
-                  {err.preview}
-                </div>
+              <div key={idx} className="text-xs">
+                <div className="font-medium">{translate("Block")}{" "}{err.blockIndex + 1}{" "}{translate("(line")}{" "}{err.lineNumber}): {err.error}</div>
+                <div className="figure muted truncate">{err.preview}</div>
               </div>
             ))}
           </div>
         </div>
       )}
-
-      {/* Placeholders info */}
       {placeholders.length > 0 && (
-        <div className="mb-3 p-2 rounded bg-gray-800/50 border border-gray-700/50">
-          <div className="text-xs text-gray-400 mb-1">{translate("Available Placeholders:")}</div>
-          {placeholders.map((p) => (
-            <div key={p.key} className="text-xs text-gray-300">
-              <code className="text-blue-400 bg-gray-900 px-1 rounded">{p.key}</code>
-              <span className="text-gray-500 ml-2">- {translateLabel(p.description)}</span>
-            </div>
-          ))}
+        <div className="grid gap-1 text-xs">
+          <div className="muted">{translate("Available Placeholders:")}</div>
+          {placeholders.map((p) => <div key={p.key}><code className="figure text-brass">{p.key}</code><span className="muted ml-2">- {translateLabel(p.description)}</span></div>)}
         </div>
       )}
-
-      {/* Character count */}
-      <div className="text-xs text-gray-500 mb-3">
-        {pendingPrompt.length.toLocaleString()}{" "}{translate("characters")}</div>
-
-      {/* Action buttons */}
-      <div className="flex items-center gap-2">
-        {/* Apply button */}
-        <button
-          onClick={applyPrompt}
-          disabled={isLoading || !hasPendingChanges() || hasJsonErrors()}
-          title={hasJsonErrors() ? translate("Fix JSON errors before applying") : undefined}
-          className="px-3 py-1.5 text-xs rounded bg-blue-700 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-blue-500"
-        >
+      <div className="hint figure">{pendingPrompt.length.toLocaleString()}{" "}{translate("characters")}</div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" onClick={applyPrompt} disabled={isLoading || !hasPendingChanges() || hasJsonErrors()} title={hasJsonErrors() ? translate("Fix JSON errors before applying") : undefined} className="btn btn-primary btn-small">
           {isLoading ? translate("Saving...") : translate("Apply Changes")}
         </button>
-
-        {/* Reset button */}
-        {isUsingCustom() && !showResetConfirm && (
-          <button
-            onClick={handleReset}
-            disabled={isLoading}
-            className="px-3 py-1.5 text-xs rounded bg-gray-700 text-gray-200 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-gray-500"
-          >{translate("Reset to Default")}</button>
-        )}
-
-        {/* Reset confirmation */}
-        {showResetConfirm && (
-          <>
-            <button
-              onClick={handleReset}
-              disabled={isLoading}
-              className="px-3 py-1.5 text-xs rounded bg-red-700 text-white hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-red-500"
-            >{translate("Confirm Reset")}</button>
-            <button
-              onClick={handleCancelReset}
-              disabled={isLoading}
-              className="px-3 py-1.5 text-xs rounded bg-gray-700 text-gray-200 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-gray-500"
-            >{translate("Cancel")}</button>
-          </>
-        )}
-
-        {/* Discard button */}
-        {hasPendingChanges() && (
-          <button
-            onClick={discardChanges}
-            disabled={isLoading}
-            className="px-3 py-1.5 text-xs rounded bg-gray-700 text-gray-200 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-gray-500"
-          >{translate("Discard")}</button>
-        )}
+        {isUsingCustom() && !showResetConfirm && <button type="button" onClick={handleReset} disabled={isLoading} className="btn btn-small">{translate("Reset to Default")}</button>}
+        {showResetConfirm && <>
+          <button type="button" onClick={handleReset} disabled={isLoading} className="btn btn-danger btn-small">{translate("Confirm Reset")}</button>
+          <button type="button" onClick={handleCancelReset} disabled={isLoading} className="btn btn-small">{translate("Cancel")}</button>
+        </>}
+        {hasPendingChanges() && <button type="button" onClick={discardChanges} disabled={isLoading} className="btn btn-quiet btn-small">{translate("Discard")}</button>}
       </div>
-
-      {/* Info note */}
-      <div className="mt-3 text-xs text-gray-500">{translate("Prompt stored in browser localStorage. Changes affect new agent decisions.")}</div>
+      <p className="hint m-0">{translate("Prompt stored in browser localStorage. Changes affect new agent decisions.")}</p>
     </div>
   );
 }

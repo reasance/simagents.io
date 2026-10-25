@@ -17,15 +17,7 @@ interface BarChartProps {
   formatValue?: (value: number) => string;
 }
 
-// LLM colors matching the agent colors
-const llmColors: Record<string, string> = {
-  claude: '#e07a5f',
-  codex: '#6a8caf',
-  gemini: '#81b29a',
-  deepseek: '#f2cc8f',
-  qwen: '#9a8bc2',
-  glm: '#d4a5a5',
-};
+
 
 export function BarChart({
   data,
@@ -48,7 +40,7 @@ export function BarChart({
     <div className="w-full" style={{ height }}>
       {data.map((d, i) => {
         const barWidth = (d.value / maxValue) * 100;
-        const color = d.color || llmColors[d.label.toLowerCase()] || '#888888';
+        const color = d.color || 'var(--color-mist)';
 
         return (
           <div
@@ -56,12 +48,12 @@ export function BarChart({
             className="flex items-center gap-2"
             style={{ height: barHeight + gap, marginBottom: gap }}
           >
-            <div className="w-16 text-xs text-city-text-muted truncate text-right">
+            <div className="w-24 text-xs text-city-text-muted truncate text-right">
               {translateLabel(d.label)}
             </div>
-            <div className="flex-1 h-full bg-city-surface-hover/30 rounded overflow-hidden">
+            <div className="flex-1 h-full bg-rule/40 rounded-sm overflow-hidden">
               <div
-                className="h-full rounded transition-all duration-300"
+                className="h-full rounded-sm transition-all duration-300"
                 style={{
                   width: `${barWidth}%`,
                   backgroundColor: color,
@@ -69,7 +61,7 @@ export function BarChart({
               />
             </div>
             {showValues && (
-              <div className="w-16 text-xs text-city-text tabular-nums text-right">
+              <div className="w-16 text-xs figure text-right">
                 {formatValue(d.value)}
               </div>
             )}

@@ -98,7 +98,7 @@ function CodeViewer({ content, lineNumbers = true }: { content: string; lineNumb
       >
         {copied ? (
           <>
-            <svg className="w-3 h-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3 h-3 text-ok" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>{translate("Copied")}</>
         ) : (
@@ -176,8 +176,8 @@ export function PromptViewer() {
   if (currentLogError) {
     return (
       <div className="h-full flex items-center justify-center p-8">
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-6 max-w-md">
-          <h3 className="text-red-400 font-medium mb-2">{translate("Error Loading Prompt")}</h3>
+        <div className="bg-alert/10 border border-alert/30 rounded-lg p-6 max-w-md">
+          <h3 className="text-alert font-medium mb-2">{translate("Error Loading Prompt")}</h3>
           <p className="text-city-text-muted text-sm">{formatError(currentLogError)}</p>
         </div>
       </div>
@@ -223,7 +223,7 @@ export function PromptViewer() {
 
   return (
     <div className="prompt-viewer h-full flex flex-col">
-      {currentLog.source !== 'captured' && <p role="note" className="p-3 text-sm text-yellow-300">{translate("Reconstructed event summary. The actual request and raw response were not captured.")}</p>}
+      {currentLog.source !== 'captured' && <p role="note" className="p-3 text-sm text-brass">{translate("Reconstructed event summary. The actual request and raw response were not captured.")}</p>}
       {currentLog.requestTrace && <p role="note" className="p-3 text-sm text-city-text-muted">{translate("Captured request ·")}{currentLog.requestTrace.protocol} · {currentLog.requestTrace.outcome}{" "}{translate("· HTTP")}{" "}{currentLog.requestTrace.status ?? translate('Not available')} · {currentLog.requestTrace.durationMs} ms
         {currentLog.requestTrace.errorCode && ` · ${currentLog.requestTrace.errorCode}`}
         {currentLog.requestTrace.truncated && ` · ${translate('Truncated: body exceeds capture limit')}`}
@@ -237,17 +237,17 @@ export function PromptViewer() {
             </span>
             <span className={`px-2 py-0.5 rounded text-xs font-medium ${
               currentLog.promptMode === 'emergent'
-                ? 'bg-purple-500/20 text-purple-300'
-                : 'bg-blue-500/20 text-blue-400'
+                ? 'bg-raised text-mist'
+                : 'bg-raised text-star'
             }`}>
               {translateLabel(currentLog.promptMode)}
             </span>
             <span className={`px-2 py-0.5 rounded text-xs ${
               currentLog.safetyLevel === 'none'
-                ? 'bg-red-500/20 text-red-400'
+                ? 'bg-alert/10 text-alert'
                 : currentLog.safetyLevel === 'minimal'
-                  ? 'bg-amber-500/20 text-amber-400'
-                  : 'bg-green-500/20 text-green-400'
+                  ? 'bg-brass/15 text-brass'
+                  : 'bg-ok/20 text-ok'
             }`}>
               {translateLabel(currentLog.safetyLevel)}
             </span>
@@ -255,10 +255,10 @@ export function PromptViewer() {
 
           <div className="flex items-center gap-2 text-xs text-city-text-muted">
             {currentLog.usedFallback && (
-              <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded">{translate("Fallback")}</span>
+              <span className="px-2 py-0.5 bg-brass/15 text-brass rounded">{translate("Fallback")}</span>
             )}
             {currentLog.usedCache && (
-              <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded">{translate("Cached")}</span>
+              <span className="px-2 py-0.5 bg-raised text-star rounded">{translate("Cached")}</span>
             )}
             {currentLog.processingTimeMs !== null && (
               <span>{currentLog.processingTimeMs}ms</span>

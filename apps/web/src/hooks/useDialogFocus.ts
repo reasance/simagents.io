@@ -23,6 +23,6 @@ export function useDialogFocus(ref: RefObject<HTMLElement | null>, open: boolean
     };
     document.addEventListener('keydown', keydown, true);
     return () => { document.removeEventListener('keydown', keydown, true); if (previous?.isConnected && !previous.hasAttribute('disabled') && previous.getClientRects().length > 0 && !previous.closest('[inert]')) previous.focus();
-      else [...document.querySelectorAll<HTMLElement>('.simulation-header button, .simulation-tools > summary')].find(el => el.getClientRects().length > 0 && !el.hasAttribute('disabled') && !el.closest('[inert]'))?.focus(); };
+      else [...document.querySelectorAll<HTMLElement>('.topbar .session-controls button, .simulation-tools > summary')].find(el => el.getClientRects().length > 0 && !el.hasAttribute('disabled') && !el.closest('[inert]'))?.focus(); };
   }, [open, ref]);
 }

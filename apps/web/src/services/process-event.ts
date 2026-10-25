@@ -1,5 +1,4 @@
 import type { AgentBubble, Agent, WorldEvent } from '../stores/world';
-import type { SoundType } from '../hooks/useAudio';
 import { recordPromptEvent } from './promptLogs';
 
 export interface ProcessEventDeps {
@@ -9,7 +8,6 @@ export interface ProcessEventDeps {
   setTick: (tick: number) => void;
   updateAgent: (id: string, updates: Partial<Agent>) => void;
   recordDecisionEvent?: (event: WorldEvent) => void;
-  playSound?: (sound: SoundType) => void;
 }
 
 export function processWorldEvent(data: WorldEvent, deps: ProcessEventDeps): void {
@@ -50,7 +48,6 @@ export function processWorldEvent(data: WorldEvent, deps: ProcessEventDeps): voi
 
     case 'tick_start':
       deps.setTick(data.tick);
-      deps.playSound?.('tick');
       break;
 
     case 'tick_end':
@@ -81,7 +78,6 @@ export function processWorldEvent(data: WorldEvent, deps: ProcessEventDeps): voi
     case 'agent_worked':
       if (data.agentId) {
         deps.updateAgent(data.agentId, { state: 'working' });
-        deps.playSound?.('work');
       }
       break;
 
@@ -123,32 +119,13 @@ export function processWorldEvent(data: WorldEvent, deps: ProcessEventDeps): voi
         deps.updateAgent(data.agentId, {
           balance: data.payload.newBalance as number,
         });
-        const delta = (data.payload.newBalance as number) - (data.payload.oldBalance as number || 0);
-        if (delta < 0) {
-          deps.playSound?.('buy');
-        } else if (delta > 0) {
-          deps.playSound?.('trade');
-        }
       }
       break;
 
     case 'agent_died':
       if (data.agentId) {
         deps.updateAgent(data.agentId, { health: 0, state: 'dead' });
-        deps.playSound?.('death');
       }
-      break;
-
-    case 'agent_traded':
-      deps.playSound?.('trade');
-      break;
-
-    case 'agent_harmed':
-      deps.playSound?.('harm');
-      break;
-
-    case 'agent_gathered':
-      deps.playSound?.('gather');
       break;
 
     default:

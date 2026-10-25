@@ -53,8 +53,8 @@ export function PromptInspector() {
   if (statusError) {
     return (
       <div className="h-full flex items-center justify-center">
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-6 max-w-md">
-          <h3 className="text-red-400 font-medium mb-2">{translate("Error Loading Inspector")}</h3>
+        <div className="bg-alert/10 border border-alert/30 rounded-lg p-6 max-w-md">
+          <h3 className="text-alert font-medium mb-2">{translate("Error Loading Inspector")}</h3>
           <p className="text-city-text-muted text-sm">{formatError(statusError)}</p>
           <button
             onClick={() => fetchStatus()}
@@ -70,8 +70,8 @@ export function PromptInspector() {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="bg-city-surface border border-city-border rounded-lg p-8 max-w-lg text-center">
-          <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-16 h-16 bg-brass/15 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-brass" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
           </div>
@@ -91,14 +91,14 @@ export function PromptInspector() {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="bg-city-surface border border-city-border rounded-lg p-8 max-w-lg text-center">
-          <div className="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-16 h-16 bg-raised rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-star" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
           </div>
           <h3 className="text-lg font-semibold text-city-text mb-2">{translate("No Prompt Logs Yet")}</h3>
           <p className="text-city-text-muted text-sm mb-4">{translate("Prompt logging is enabled, but no data has been recorded yet. Run a simulation tick to generate prompt logs.")}</p>
-          <div className="flex items-center justify-center gap-2 text-green-400 text-sm">
+          <div className="flex items-center justify-center gap-2 text-ok text-sm">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
@@ -115,8 +115,8 @@ export function PromptInspector() {
       {/* Status bar */}
       <div className="inspector-status flex-none px-4 py-2 bg-city-surface-hover/50 border-b border-city-border/50 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-green-400 text-xs">
-            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+          <div className="flex items-center gap-2 text-ok text-xs">
+            <div className="w-2 h-2 bg-ok rounded-full animate-pulse" />
             <span>{translate("Live Inspector Active")}</span>
           </div>
           {status && (

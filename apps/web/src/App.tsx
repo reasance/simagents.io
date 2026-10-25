@@ -1,497 +1,217 @@
 import { AppError, errorIssue, type AppIssue } from '@simagents/shared';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { formatIssue } from './i18n/errors';
-import { EntitySelector } from './components/EntitySelector';
-import { MobileResourceList } from './components/Mobile/MobileResourceList';
-import { formatError } from './i18n/errors';
+import { translate, useLocale } from './i18n';
 import { importWorld } from './services/import-world';
 import { APP_DATA_BUDGET } from './services/app-data';
-import { reportSecondaryFailure } from './services/secondary-data';
-import { translate, useLocale } from './i18n';
-import { SimulationHeader } from './components/SimulationHeader';
-
-import { SetupJourney } from './components/Setup/SetupJourney';
-import { clearReplayFrames } from './services/replayFrames';
-import { clearPromptLogs } from './services/promptLogs';
-import { StorageNotice } from './components/StorageNotice';
 import { migrateLegacyRuntime } from './services/migrate-legacy-runtime';
-/**
- * SimAgents - Scientific Mode
- *
- * Simplified interface for the scientific experiment:
- * - No city editor (resources/shelters are spawned automatically)
- * - Grid visualization shows agents, resources, shelters
- * - Focus on observing emergent behavior
- * - Toggle between 2D and Isometric views
- * - Mobile-responsive with bottom navigation on small screens
- */
-
-import { useEffect, useCallback, useRef, useState } from 'react';
+import { downloadWorldExport } from './services/persistence';
+import { getEngineClient } from './engine-host/engine-client';
 import { useEngine } from './hooks/useEngine';
-import { useWorldStore, useAgents, useEvents } from './stores/world';
-import { useEditorStore, useAppMode, useIsAnalyticsMode, useIsReplayMode, useIsPromptsMode, useIsPuzzlesMode, useIsPaused, useViewMode, type AppMode } from './stores/editor';
 import { useWorldControl } from './hooks/useWorldControl';
-import { Layout } from './components/Layout';
-import { ScientificCanvas } from './components/Canvas/ScientificCanvas';
-import { ScientificIsometricCanvas } from './components/Canvas/ScientificIsometricCanvas';
-import { EventFeed } from './components/EventFeed';
-import { AgentProfile } from './components/AgentProfile';
+import { useWorldStore, useAliveAgents, useNotableEvents } from './stores/world';
+import { useEditorStore, useAppMode, useIsAnalyticsMode, useIsReplayMode, useIsPromptsMode } from './stores/editor';
+import { useReplayStore } from './stores/replay';
+import { TopBar } from './components/TopBar';
+import { SetupJourney, type SetupStep } from './components/Setup/SetupJourney';
+import { ConfigPanel } from './components/ConfigPanel';
+import { StorageNotice } from './components/StorageNotice';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { WorldMap } from './components/Canvas/WorldMap';
+import { ParticipantList } from './components/World/ParticipantList';
+import { AgentDetail } from './components/World/AgentDetail';
+import { Feed } from './components/World/Feed';
 import { ResourceProfile } from './components/ResourceProfile';
-import { WorldStats } from './components/WorldStats';
-import { AgentSummaryTable } from './components/AgentSummaryTable';
-import { DecisionLog } from './components/DecisionLog';
-import { ModeControls, ViewToggle, EventFilters } from './components/Controls';
 import { MobileNav, type MobileView } from './components/MobileNav';
+import { SocialGraphView } from './components/SocialGraph';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { ReplayPage } from './pages/ReplayPage';
 import { PromptsPage } from './pages/PromptsPage';
-import { PuzzlesPage } from './pages/PuzzlesPage';
-import { useReplayStore } from './stores/replay';
-import { ErrorBoundary } from './components/ErrorBoundary';
-import { SocialGraphView, SocialGraphButton } from './components/SocialGraph';
-import { MobileAgentList, MobileDecisionLog } from './components/Mobile';
-import { ConfigPanel } from './components/ConfigPanel';
-import {
-  downloadWorldExport,
-  parseWorldExportFile,
-  saveImportedWorld,
-} from './services/persistence';
-import { useSessionLimitsStore } from './stores/sessionLimits';
-import { getEngineClient } from './engine-host/engine-client';
+
+/** The world before it starts: what this is, and the one thing to do next. */
+function FirstRun({ onSetup, onImport }: { onSetup: () => void; onImport: () => void }) {
+  useLocale();
+  return <section className="first-run" aria-label={translate('Simulation setup')}>
+    <div className="first-run-card">
+      <span className="engraved">{translate('An observatory for AI models')}</span>
+      <h1>{translate('Put different models in one world and watch what grows between them.')}</h1>
+      <p>{translate('Bring your own keys, choose each model and its effort, and let them survive at their own speed. Nothing tells them to cooperate.')}</p>
+      <dl>
+        <dt>{translate('Imposed')}</dt><dd>{translate('A 100 × 100 world, hunger, energy, health, resources and seasons')}</dd>
+        <dt>{translate('Left open')}</dt><dd>{translate('Who talks to whom, gifts, force, names for places, any rules')}</dd>
+      </dl>
+      <div className="flex flex-wrap gap-3">
+        <button type="button" className="btn btn-primary" onClick={onSetup}>{translate('Set up a simulation')}</button>
+        <button type="button" className="btn btn-quiet" onClick={onImport}>{translate('Import saved world')}</button>
+      </div>
+    </div>
+  </section>;
+}
 
 export default function App() {
   useLocale();
   useEffect(() => { migrateLegacyRuntime(); }, []);
-  const localConnection = useEngine();
-  const usage = useSessionLimitsStore((state) => state.usage);
-  const { status, connect, disconnect } = localConnection;
-  const selectedAgentId = useWorldStore((s) => s.selectedAgentId);
-  const selectedResourceId = useWorldStore((s) => s.selectedResourceId);
-  const { resetWorld, setWorldState, setEvents, updateWorldState } = useWorldStore();
+  const engine = useEngine();
+  const { status, connect, disconnect } = engine;
+  const selectedAgentId = useWorldStore(s => s.selectedAgentId);
+  const selectedResourceId = useWorldStore(s => s.selectedResourceId);
+  const { resetWorld, setWorldState, setEvents } = useWorldStore();
   const { setMode, setPaused } = useEditorStore();
   const mode = useAppMode();
-  const viewMode = useViewMode();
-  const isAnalyticsMode = useIsAnalyticsMode();
-  const isReplayMode = useIsReplayMode();
-  const isPromptsMode = useIsPromptsMode();
-  const isPuzzlesMode = useIsPuzzlesMode();
-  const isPaused = useIsPaused();
-  const { enterReplayMode, exitReplayMode } = useReplayStore();
-  const [hasSynced, setHasSynced] = useState(false);
-
-  // Mobile navigation state
-  const [mobileView, setMobileView] = useState<MobileView>('canvas');
-  const [importBusy, setImportBusy] = useState(false), [importComplete, setImportComplete] = useState(false);
-  const [importIssue, setImportIssue] = useState<AppIssue>();
-  const [exportIssue, setExportIssue] = useState<AppIssue>();
-  // Config panel state
-  const setupTrigger = useRef<HTMLButtonElement>(null);
-  const [showSetup, setShowSetup] = useState(false);
-  const [showConfigPanel, setShowConfigPanel] = useState(false);
-  const configReturnFocus = useRef<HTMLElement | null>(null);
-  const importInputRef = useRef<HTMLInputElement | null>(null);
-  const agents = useAgents();
-  const events = useEvents();
-  const aliveAgents = agents.filter(a => a.health > 0);
-
+  const isAnalytics = useIsAnalyticsMode(), isReplay = useIsReplayMode(), isPrompts = useIsPromptsMode();
+  const { enterReplayMode } = useReplayStore();
+  const alive = useAliveAgents().length;
+  const notable = useNotableEvents().length;
   const { fetchState, start, pause, resume, reset } = useWorldControl();
 
-  useEffect(() => {
-    if (hasSynced) return;
-    const syncWithWorker = async () => {
-      const state = await fetchState();
-      if (state && state.isRunning) {
-        setWorldState({
-          tick: state.tick,
-          agents: state.agents || [],
-          resourceSpawns: state.resourceSpawns || [],
-          shelters: state.shelters || [],
-        });
+  const [synced, setSynced] = useState(false);
+  const [mobileView, setMobileView] = useState<MobileView>('map');
+  const [setup, setSetup] = useState<SetupStep | 'auto' | undefined>();
+  const [showConfig, setShowConfig] = useState(false);
+  const [importBusy, setImportBusy] = useState(false), [importComplete, setImportComplete] = useState(false);
+  const [importIssue, setImportIssue] = useState<AppIssue>(), [exportIssue, setExportIssue] = useState<AppIssue>();
+  const importInput = useRef<HTMLInputElement | null>(null);
+  const returnFocus = useRef<HTMLElement | null>(null);
 
-        // Events repopulate from the live worker event stream and the persisted event ring.
+  useEffect(() => {
+    if (synced) return;
+    void fetchState().then(state => {
+      if (state?.isRunning) {
+        setWorldState({ tick: state.tick, agents: state.agents || [], resourceSpawns: state.resourceSpawns || [], shelters: state.shelters || [] });
         setPaused(state.isPaused);
         setMode('simulation');
       }
-      setHasSynced(true);
-    };
-
-    syncWithWorker();
-  }, [hasSynced, fetchState, setMode, setPaused, setWorldState]);
-
-  const handleStartSimulation = useCallback(async (resumeSavedWorld = false) => {
-    const result = await start({ resumeSavedWorld });
-    if (!result.success) {
-      throw new AppError(result.issue ?? { code: 'INTERNAL_ERROR' });
-    }
-
-    // Update store with spawned entities
-    setWorldState({
-      tick: result.tick ?? 1,
-      agents: result.agents ?? [],
-      resourceSpawns: result.resourceSpawns ?? [],
-      shelters: result.shelters ?? [],
+      setSynced(true);
     });
-    if (result.events) {
-      setEvents(result.events);
-    }
+  }, [synced, fetchState, setMode, setPaused, setWorldState]);
 
-    // Switch to simulation mode
+  const handleStart = useCallback(async (resumeSavedWorld = false) => {
+    const result = await start({ resumeSavedWorld });
+    if (!result.success) throw new AppError(result.issue ?? { code: 'INTERNAL_ERROR' });
+    setWorldState({ tick: result.tick ?? 1, agents: result.agents ?? [], resourceSpawns: result.resourceSpawns ?? [], shelters: result.shelters ?? [] });
+    if (result.events) setEvents(result.events);
     setPaused(false);
     setMode('simulation');
-
     connect();
-  }, [setMode, setPaused, start, setWorldState, setEvents, connect]);
+  }, [start, setWorldState, setEvents, setPaused, setMode, connect]);
 
   const handleReset = useCallback(async () => {
     disconnect();
     await reset();
     resetWorld();
     setPaused(false);
-    setMode('editor'); // Back to "ready" state
-  }, [disconnect, reset, resetWorld, setMode, setPaused]);
+    setMode('editor');
+  }, [disconnect, reset, resetWorld, setPaused, setMode]);
 
-  const handleExportWorld = useCallback(async () => {
+  const handleExport = useCallback(async () => {
     setExportIssue(undefined);
-    try {
-      const exported = await getEngineClient().exportWorld();
-      downloadWorldExport(exported);
-    } catch {
-      setExportIssue({ code: 'EXPORT_FAILED' });
-    }
+    try { downloadWorldExport(await getEngineClient().exportWorld()); }
+    catch { setExportIssue({ code: 'EXPORT_FAILED' }); }
   }, []);
 
-  const handleImportFile = useCallback(async (file: File | undefined) => {
+  const handleImport = useCallback(async (file: File | undefined) => {
     if (!file || importBusy) return;
     setImportBusy(true); setImportIssue(undefined); setImportComplete(false); setExportIssue(undefined);
     try {
       if (file.size > APP_DATA_BUDGET) throw new AppError({ code: 'STORAGE_BUDGET' });
       await importWorld(JSON.parse(await file.text()), getEngineClient());
-      disconnect();
-      resetWorld();
-      setPaused(false);
-      setMode('editor');
-      // History is indexed by world/agent. Import must not silently delete another world's archives.
+      disconnect(); resetWorld(); setPaused(false); setMode('editor');
+      // History is indexed by world and agent; importing never deletes another world's archives.
       useReplayStore.getState().reset();
       setImportComplete(true);
-    } catch (error) {
-      setImportIssue(errorIssue(error));
-    } finally {
-      setImportBusy(false);
-      if (importInputRef.current) importInputRef.current.value = '';
-    }
+    } catch (error) { setImportIssue(errorIssue(error)); }
+    finally { setImportBusy(false); if (importInput.current) importInput.current.value = ''; }
   }, [disconnect, resetWorld, setMode, setPaused, importBusy]);
 
-  const handlePause = useCallback(async () => {
-    await pause();
-    disconnect();
-  }, [pause, disconnect]);
-
-  const handleResume = useCallback(async () => {
-    await resume();
-    connect();
-  }, [resume, connect]);
-
-  // Handle enter replay mode
-  const handleEnterReplay = useCallback(async () => {
+  const handlePause = useCallback(async () => { await pause(); disconnect(); }, [pause, disconnect]);
+  const handleResume = useCallback(async () => { await resume(); connect(); }, [resume, connect]);
+  const handleReplay = useCallback(async () => {
     if (getEngineClient().isRunning()) await getEngineClient().pause();
     disconnect();
     setMode('replay');
     enterReplayMode();
   }, [disconnect, setMode, enterReplayMode]);
-
-  // Handle exit replay mode
-  const handleExitReplay = useCallback(() => {
-    exitReplayMode();
-    setMode('simulation');
-    connect();
-  }, [exitReplayMode, setMode, connect]);
-
-  // Error handler for logging/reporting
-  const handleError = useCallback((error: Error, errorInfo: React.ErrorInfo) => {
-    console.error('[App] Component error caught:', {
-      error: error.message,
-      componentStack: errorInfo.componentStack,
-    });
+  const handleError = useCallback((error: Error, info: React.ErrorInfo) => {
+    console.error('[App] Component error caught:', { error: error.message, componentStack: info.componentStack });
   }, []);
 
-  // Switch to profile view when agent or resource is selected (mobile)
+  // On small screens, choosing something on the map opens its details.
   useEffect(() => {
-    if ((selectedAgentId || selectedResourceId) && window.innerWidth < 1024) {
-      setMobileView('profile');
-    }
+    if ((selectedAgentId || selectedResourceId) && window.innerWidth < 1024) setMobileView('details');
   }, [selectedAgentId, selectedResourceId]);
 
-  // Render the appropriate canvas based on view mode
-  const renderCanvas = () => {
-    if (viewMode === 'isometric') {
-      return <ScientificIsometricCanvas />;
-    }
-    return <ScientificCanvas />;
-  };
+  const openSetup = (step?: SetupStep) => { returnFocus.current = document.activeElement as HTMLElement; setSetup(step ?? 'auto'); };
+  const openConfig = () => { returnFocus.current = document.activeElement as HTMLElement; setShowConfig(true); };
+  const restoreFocus = () => requestAnimationFrame(() => {
+    const previous = returnFocus.current;
+    if (previous?.isConnected && previous.getClientRects().length) previous.focus();
+    else document.querySelector<HTMLElement>('.simulation-tools > summary')?.focus();
+  });
+  const overlay = !!setup || showConfig;
+  const ready = mode === 'editor';
 
-  const openConfiguration = () => { configReturnFocus.current = document.activeElement as HTMLElement; setShowConfigPanel(true); };
-  const closeConfiguration = () => {
-    setShowConfigPanel(false);
-    requestAnimationFrame(() => {
-      const previous = configReturnFocus.current;
-      if (previous?.isConnected && previous.getClientRects().length) previous.focus();
-      else [...document.querySelectorAll<HTMLElement>('.simulation-tools > summary')].find(element => element.getClientRects().length)?.focus();
-    });
-  };
+  const topBar = (onNavigate?: () => void) => <TopBar status={status} mutationPending={importBusy} errorMessage={engine.error ?? undefined}
+    onSetup={() => openSetup(engine.error && !ready ? 'start' : undefined)} onPause={handlePause} onResume={handleResume} onReset={() => void handleReset()}
+    onConfigure={openConfig} onImport={() => importInput.current?.click()} onExport={() => void handleExport()} onReplay={() => void handleReplay()} onNavigate={onNavigate} />;
 
-  const renderHeader = (onNavigate?: () => void) => <SimulationHeader status={status} mutationPending={importBusy} errorMessage={localConnection.error ?? undefined} onStart={handleStartSimulation}
-    onPause={handlePause} onResume={handleResume} onReset={handleReset}
-    onConfigure={openConfiguration} onImport={() => importInputRef.current?.click()}
-    onExport={() => void handleExportWorld()} onReplay={() => void handleEnterReplay()} onNavigate={onNavigate} />;
-  const headerContent = renderHeader();
+  const notices = <>
+    {(importComplete || importIssue || exportIssue) && <div role={importIssue || exportIssue ? 'alert' : 'status'} tabIndex={0} className="simulation-error-notice surface p-4 text-sm">
+      <p className="m-0">{importIssue || exportIssue ? formatIssue((importIssue ?? exportIssue)!) : translate('World imported. Use Start to resume the saved world.')}</p>
+      <button type="button" className="btn btn-small mt-3" onClick={() => { setImportIssue(undefined); setImportComplete(false); setExportIssue(undefined); }}>{translate('Close')}</button>
+    </div>}
+    {engine.error && !importIssue && !exportIssue && <div role="alert" tabIndex={0} className="simulation-error-notice surface p-4 text-sm" style={{ borderColor: '#e07a6a80' }}>
+      <strong>{translate('Simulation paused.')}</strong> {engine.error}
+      <p className="hint mb-0">{translate('Check the connection, model and provider quota, then resume explicitly. No fallback or automatic retry was used.')}</p>
+    </div>}
+    <StorageNotice />
+    <input ref={importInput} type="file" accept="application/json,.json" className="hidden" onChange={event => void handleImport(event.currentTarget.files?.[0])} />
+    {setup && <SetupJourney initialStep={setup === 'auto' ? undefined : setup} onStart={handleStart}
+      onClose={() => { setSetup(undefined); restoreFocus(); }} onAdvanced={() => { setSetup(undefined); setShowConfig(true); }} />}
+    {showConfig && <ConfigPanel onClose={() => { setShowConfig(false); restoreFocus(); }} />}
+  </>;
 
-  const importNotice = (importComplete || importIssue || exportIssue) && <div role={importIssue || exportIssue ? 'alert' : 'status'} tabIndex={0} className="simulation-error-notice rounded-lg border border-city-border bg-gray-950 p-4 text-sm text-white">
-    <p>{importIssue || exportIssue ? formatIssue((importIssue ?? exportIssue)!) : translate('World imported. Use Start to resume the saved world.')}</p>
-    <button type="button" className="min-h-11 mt-2 px-3 border border-city-border rounded" onClick={() => { setImportIssue(undefined); setImportComplete(false); setExportIssue(undefined); }}>{translate('Close')}</button>
-  </div>;
-
-  if (isAnalyticsMode || isReplayMode || isPromptsMode || isPuzzlesMode) {
-    const section = isAnalyticsMode ? 'Analytics' : isReplayMode ? 'Replay' : isPromptsMode ? 'Prompts' : 'Puzzles';
+  if (isAnalytics || isReplay || isPrompts) {
+    const section = isAnalytics ? 'Relations' : isReplay ? 'Replay' : 'Prompts';
     return <>
-      {importNotice}
-      <StorageNotice />
-      <SocialGraphView controls={renderHeader} />
-      <input ref={importInputRef} type="file" accept="application/json,.json" className="hidden" onChange={event => void handleImportFile(event.currentTarget.files?.[0])} />
-      {showConfigPanel && <ConfigPanel onClose={closeConfiguration} />}
-      <div inert={showConfigPanel} className="feature-shell">
-        <header className="app-header shrink-0">{headerContent}</header>
+      {notices}
+      <SocialGraphView controls={topBar} />
+      <div inert={overlay} className="feature-shell">
+        <header className="app-header shrink-0">{topBar()}</header>
         <div className="feature-body">
           <ErrorBoundary sectionName={translate(section)} onError={handleError}>
-            {isAnalyticsMode ? <AnalyticsPage /> : isReplayMode ? <ReplayPage /> : isPromptsMode ? <PromptsPage /> : <PuzzlesPage />}
+            {isAnalytics ? <AnalyticsPage /> : isReplay ? <ReplayPage /> : <PromptsPage />}
           </ErrorBoundary>
         </div>
       </div>
     </>;
   }
 
-  // Ready mode (before simulation starts)
-  const isReadyMode = mode === 'editor';
+  const detail = selectedAgentId
+    ? <ErrorBoundary sectionName={translate('Agent Profile')} onError={handleError} compact><AgentDetail agentId={selectedAgentId} /></ErrorBoundary>
+    : selectedResourceId ? <ErrorBoundary sectionName={translate('Resource Profile')} onError={handleError} compact><ResourceProfile /></ErrorBoundary> : null;
+  const map = <ErrorBoundary sectionName={translate('Canvas')} onError={handleError}><WorldMap showTools={!ready} /></ErrorBoundary>;
 
-  // Mobile view content
-  const renderMobileContent = () => {
-    switch (mobileView) {
-      case 'agents':
-        return (
-          <div className="h-full overflow-y-auto bg-city-bg">
-            <ErrorBoundary sectionName={translate("Agent Summary")} onError={handleError} compact>
-              <MobileAgentList />
-            </ErrorBoundary>
-          </div>
-        );
-      case 'resources':
-        return <div className="h-full overflow-y-auto"><MobileResourceList /></div>;
-      case 'events':
-        return (
-          <div className="h-full overflow-y-auto bg-city-bg">
-            <ErrorBoundary sectionName={translate("Event Feed")} onError={handleError} compact>
-              <EventFeed />
-            </ErrorBoundary>
-          </div>
-        );
-      case 'decisions':
-        return (
-          <div tabIndex={0} aria-label={translate('Decisions')} className="h-full overflow-y-auto bg-city-bg">
-            <ErrorBoundary sectionName={translate("Decision Log")} onError={handleError} compact>
-              <MobileDecisionLog />
-            </ErrorBoundary>
-          </div>
-        );
-      case 'profile':
-        return (
-          <div className="h-full overflow-y-auto bg-city-bg">
-            {selectedAgentId ? (
-              <ErrorBoundary sectionName={translate("Agent Profile")} onError={handleError} compact>
-                <AgentProfile agentId={selectedAgentId} />
-              </ErrorBoundary>
-            ) : selectedResourceId ? (
-              <ErrorBoundary sectionName={translate("Resource Profile")} onError={handleError} compact>
-                <ResourceProfile />
-              </ErrorBoundary>
-            ) : (
-              <div className="p-4 text-city-text-muted text-sm text-center">
-                <p>{translate("No agent or resource selected")}</p>
-                <p className="mt-2 text-xs">{translate("Tap an agent or resource on the map to view details")}</p>
-              </div>
-            )}
-          </div>
-        );
-      case 'canvas':
-      default:
-        return (
-          <div className="h-full">
-            <ErrorBoundary sectionName={translate("Canvas")} onError={handleError}>
-              {renderCanvas()}
-            </ErrorBoundary>
-          </div>
-        );
-    }
-  };
-
-  return (
-    <>
-      {importNotice}
-      <StorageNotice />
-      {localConnection.error && !importIssue && !exportIssue && (
-        <div role="alert" tabIndex={0} className="simulation-error-notice rounded-lg border border-red-400 bg-gray-950 p-4 text-sm text-white">
-          <strong>{translate("Simulation paused.")}</strong> {localConnection.error}
-          <p>{translate("Check the connection, model and provider quota, then resume explicitly. No fallback or automatic retry was used.")}</p>
-        </div>
-      )}
-      {/* Social Graph Overlay */}
-      <SocialGraphView controls={renderHeader} />
-
-      {/* Config Panel */}
-      <input
-        ref={importInputRef}
-        type="file"
-        accept="application/json,.json"
-        className="hidden"
-        onChange={(event) => void handleImportFile(event.currentTarget.files?.[0])}
-      />
-
-      {mode === 'editor' && !showConfigPanel && <section inert={showSetup} aria-hidden={showSetup} className="setup-invitation" aria-label={translate("Simulation setup")}>
-        <h2>{translate("Start with your own AI models")}</h2><p>{translate("Connect a provider, verify your models and choose how your world begins.")}</p>
-        <button ref={setupTrigger} onClick={() => setShowSetup(true)}>{translate("Set up a simulation")}</button>
-      </section>}
-      {showSetup && <SetupJourney onClose={() => { setShowSetup(false); requestAnimationFrame(() => setupTrigger.current?.focus()); }} onStart={handleStartSimulation} onAdvanced={() => { setShowSetup(false); setShowConfigPanel(true); }} />}
-      {/* Config Panel */}
-      {showConfigPanel && (
-        <ConfigPanel onClose={closeConfiguration} />
-      )}
-
-      {/* Desktop layout */}
-      <div inert={showConfigPanel || showSetup} className="hidden lg:block h-dvh">
-        <Layout
-          header={headerContent}
-          sidebar={<>
-            {!isReadyMode && <EntitySelector />}
-            {isReadyMode ? (
-              <div className="p-4">
-                <h3 className="text-sm font-semibold text-city-text mb-2">{translate("Scientific Mode")}</h3>
-                <p className="text-xs text-city-text-muted mb-4">{translate("This experiment observes emergent behavior in an AI agent population.")}</p>
-                <div className="space-y-3 text-xs text-city-text-muted">
-                  <div>
-                    <h4 className="font-medium text-city-text mb-1">{translate("What's Imposed:")}</h4>
-                    <ul className="list-disc list-inside space-y-0.5">
-                      <li>{translate("Grid world (100x100)")}</li>
-                      <li>{translate("Survival needs (hunger, energy, health)")}</li>
-                      <li>{translate("Resource distribution")}</li>
-                    </ul>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-city-text mb-1">{translate("What Emerges:")}</h4>
-                    <ul className="list-disc list-inside space-y-0.5">
-                      <li>{translate("Movement patterns")}</li>
-                      <li>{translate("Resource gathering strategies")}</li>
-                      <li>{translate("Social behaviors")}</li>
-                    </ul>
-                  </div>
-                  <div className="pt-2 border-t border-city-border/30">
-                    <p className="italic">{translate("Click \"Start Simulation\" to begin the experiment.")}</p>
-                  </div>
-                </div>
-              </div>
-            ) : selectedAgentId ? (
-              <ErrorBoundary sectionName={translate("Agent Profile")} onError={handleError} compact>
-                <AgentProfile agentId={selectedAgentId} />
-              </ErrorBoundary>
-            ) : selectedResourceId ? (
-              <ErrorBoundary sectionName={translate("Resource Profile")} onError={handleError} compact>
-                <ResourceProfile />
-              </ErrorBoundary>
-            ) : (
-              <div className="p-4 text-gray-400 text-sm">{translate("Click an agent or resource on the grid to view details")}</div>
-            )
-          }</>}
-          feed={
-            <div className="flex flex-col h-full">
-              {/* Event Filters */}
-              <div className="shrink-0 p-2 border-b border-city-border/50">
-                <EventFilters />
-              </div>
-              {/* Event Feed */}
-              <div className="flex-1 overflow-hidden">
-                <ErrorBoundary sectionName={translate("Event Feed")} onError={handleError} compact>
-                  <EventFeed />
-                </ErrorBoundary>
-              </div>
-            </div>
-          }
-        >
-          {/* Canvas with error boundary - switches based on view mode */}
-          <ErrorBoundary sectionName={translate("Canvas")} onError={handleError}>
-            {renderCanvas()}
-          </ErrorBoundary>
-
-          {/* Floating panels with error boundaries - desktop only */}
-          {!isReadyMode && (
-            <>
-              <ErrorBoundary sectionName={translate("Agent Summary")} onError={handleError} compact>
-                <AgentSummaryTable />
-              </ErrorBoundary>
-              <ErrorBoundary sectionName={translate("Decision Log")} onError={handleError} compact>
-                <DecisionLog />
-              </ErrorBoundary>
-            </>
-          )}
-        </Layout>
-      </div>
-
-      {/* Mobile layout */}
-      <div inert={showConfigPanel || showSetup} className="lg:hidden h-dvh flex flex-col bg-city-bg">
-        {/* Mobile header */}
-        <header className="app-header shrink-0 z-20">
-          {headerContent}
-        </header>
-
-        {/* Mobile content area */}
-        <main className="mobile-world-content flex-1 min-h-0 overflow-hidden relative" style={{ marginBottom: isReadyMode ? 0 : "calc(var(--mobile-nav-height, 64px) + env(safe-area-inset-bottom))" }}>
-          {isReadyMode ? (
-            <div tabIndex={0} className="h-full overflow-y-auto p-4">
-              <h3 className="text-base font-semibold text-city-text mb-3">{translate("Scientific Mode")}</h3>
-              <p className="text-sm text-city-text-muted mb-4">{translate("This experiment observes emergent behavior in an AI agent population.")}</p>
-              <div className="space-y-4 text-sm text-city-text-muted">
-                <div>
-                  <h4 className="font-medium text-city-text mb-2">{translate("What's Imposed:")}</h4>
-                  <ul className="list-disc list-inside space-y-1">
-                    <li>{translate("Grid world (100x100)")}</li>
-                    <li>{translate("Survival needs (hunger, energy, health)")}</li>
-                    <li>{translate("Resource distribution")}</li>
-                  </ul>
-                </div>
-                <div>
-                  <h4 className="font-medium text-city-text mb-2">{translate("What Emerges:")}</h4>
-                  <ul className="list-disc list-inside space-y-1">
-                    <li>{translate("Movement patterns")}</li>
-                    <li>{translate("Resource gathering strategies")}</li>
-                    <li>{translate("Social behaviors")}</li>
-                  </ul>
-                </div>
-                <div className="pt-4 border-t border-city-border/30">
-                  <p className="italic text-center">{translate("Tap \"Start Simulation\" above to begin")}</p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            renderMobileContent()
-          )}
+  return <>
+    {notices}
+    <SocialGraphView controls={topBar} />
+    <div inert={overlay} className="world-shell">
+      <header className="app-header shrink-0">{topBar()}</header>
+      <div className="world-body">
+        <main className="world-stage" aria-label={translate('World')}>
+          <div className="h-full" style={{ paddingBottom: ready ? 0 : 'var(--mobile-pad, 0px)' }}>{map}</div>
+          {!ready && mobileView !== 'map' && <div className="lg:hidden absolute inset-0 z-20 flex flex-col bg-panel" style={{ paddingBottom: 'calc(var(--mobile-nav-height) + env(safe-area-inset-bottom))' }}>
+            {mobileView === 'participants' ? <div className="flex-1 overflow-y-auto"><ParticipantList /></div>
+              : mobileView === 'feed' ? <Feed />
+              : <div className="flex-1 overflow-y-auto">{detail ?? <p className="hint p-4">{translate('Tap an agent or resource on the map to view details')}</p>}</div>}
+          </div>}
+          {ready && <FirstRun onSetup={() => openSetup()} onImport={() => importInput.current?.click()} />}
         </main>
-
-        {/* Mobile navigation - only show when simulation is running */}
-        {!isReadyMode && (
-          <MobileNav
-            currentView={mobileView}
-            onViewChange={setMobileView}
-            hasSelectedAgent={!!selectedAgentId || !!selectedResourceId}
-            agentCount={aliveAgents.length}
-            eventCount={events.length}
-          />
-        )}
+        <aside className="world-rail" id="desktop-observation-panel" aria-label={translate('Agent details and events')}>
+          <section className="rail-section"><div className="rail-scroll">{detail ?? <ParticipantList />}</div></section>
+          <Feed />
+        </aside>
       </div>
-    </>
-  );
+      {!ready && <MobileNav current={mobileView} onChange={setMobileView} alive={alive} notable={notable} hasSelection={!!detail} />}
+    </div>
+  </>;
 }

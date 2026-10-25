@@ -11,7 +11,6 @@ import { useAgentStatsStore } from '../stores/agentStats';
 import { useWorldStore, type Agent, type ResourceSpawn, type Shelter } from '../stores/world';
 import { useSessionLimitsStore } from '../stores/sessionLimits';
 import { useEditorStore } from '../stores/editor';
-import { playSound } from './useAudio';
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
 
@@ -36,6 +35,8 @@ function mapEngineState(state: SimEngineState): {
       state: agent.state,
       color: agent.color,
       personality: agent.personality,
+      rosterEntryId: agent.rosterEntryId,
+      privateNotes: agent.privateNotes,
     })),
     resourceSpawns: state.resources.map((spawn) => ({
       id: spawn.id,
@@ -82,7 +83,6 @@ export function useEngine() {
         addBubble,
         setTick,
         updateAgent,
-        playSound,
       });
     });
     const unsubscribeWarning = client.onWarning((message, problem) => {
@@ -96,6 +96,7 @@ export function useEngine() {
       useEditorStore.getState().setPaused(state.lifecycle !== 'running');
       if (state.lifecycle === 'running') { setIssue(undefined); setError(null); }
       updateWorldState(mapEngineState(state));
+      useWorldStore.getState().setSimTime(state.simTimeMs);
     });
 
     return () => {
