@@ -47,7 +47,7 @@
   },
   "overrides": {
     "serialize-javascript": "7.1.2",
-    "undici": "6.29.0",
+    "undici": "6.29.1",
     "braces": "$braces",
     "http-cache-semantics": "4.3.0",
     "compression": "1.8.2",
