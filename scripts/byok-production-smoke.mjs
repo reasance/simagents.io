@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { openSimulationTool, productText, setSmokeLanguage } from './browser-helpers.mjs';
+import { openSetup, openSimulationTool, productText, saveProviderKey, setSmokeLanguage, setupDialog, setupStep } from './browser-helpers.mjs';
 // Exercise the production bundle, without development bridges or real inference.
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
@@ -43,50 +43,55 @@ function assert(condition, message) { if (!condition) throw new Error(message); 
 try {
   await page.goto(baseUrl, { waitUntil: 'networkidle' });
   assert(await page.evaluate(() => window.__simagentsEngineClient === undefined), 'Development bridge present in production');
-  await page.getByRole('button', { name: productText('Start') }).first().click();
-  assert(await page.getByRole('button', { name: productText('Start') }).last().isDisabled(), 'Start without a key was enabled');
-  assert(!(await page.getByRole('checkbox', { name: productText('Capture actual requests for this session') }).isChecked()), 'Capture enabled by default');
-  await page.getByRole('button', { name: productText('Cancel'), exact: true }).click();
-  await openSimulationTool(page, 'Configuration');
-  assert(await page.locator('option[value^="baseline_"]').count() === 0, 'Public configuration exposed baseline providers');
-  await page.getByLabel(productText('Claude (Anthropic) API key'), { exact: true }).fill('synthetic-production-smoke-key');
-  await page.getByRole('button', { name: productText('Use Keys for This Session'), exact: true }).click();
-  await page.getByText(productText('User Key'), { exact: true }).waitFor();
-  await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: productText('Start') }).first().click();
-  await page.getByLabel(productText('Requests'), { exact: true }).fill('');
-  assert(await page.getByRole('button', { name: productText('Start') }).last().isDisabled(), 'Invalid limits did not block start');
-  await page.getByLabel(productText('Requests'), { exact: true }).pressSequentially('1');
-  await page.getByLabel(productText('Tokens per response'), { exact: true }).fill('128');
-  assert(await page.getByRole('button', { name: productText('Start') }).last().isDisabled(), 'Migrated settings bypassed mandatory verification');
-  await page.getByRole('button', { name: productText('Cancel'), exact: true }).click();
-  await openSimulationTool(page, 'Configuration');
-  await page.getByRole('button', { name: productText('Verify model for Agent 1 (1 request)'), exact: true }).click();
-  await page.getByText(productText('Verified in this tab'), { exact: true }).waitFor();
+  const headerStart = () => page.locator('.app-header:visible').getByRole('button', { name: productText('Start'), exact: true });
+  const dialog = setupDialog(page);
+  await headerStart().click();
+  assert(await dialog.getByRole('button', { name: productText('Continue'), exact: true }).isDisabled(), 'Setup without a key could continue');
+  assert(await dialog.getByRole('navigation', { name: productText('Setup progress') }).getByRole('button', { name: new RegExp(productText('Limits and start')) }).isDisabled(), 'Start step reachable without a key');
+  await saveProviderKey(page, 'Claude (Anthropic)', 'synthetic-production-smoke-key');
+  await setupStep(page, 'Participants');
+  assert(await dialog.locator('option[value^="baseline:"]').count() === 0, 'Public setup exposed baseline providers');
+  await dialog.getByRole('button', { name: productText('Verify model for Agent 1 (1 request)'), exact: true }).click();
+  await dialog.getByText(productText('Verified in this tab'), { exact: true }).waitFor();
   assert(calls === 1, 'Probe must make exactly one request');
-  await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: productText('Start') }).first().click();
-  await page.getByRole('checkbox', { name: productText('Capture actual requests for this session') }).check();
-  await page.getByRole('button', { name: productText('Start') }).last().click();
+  await setupStep(page, 'Limits and start');
+  const startWorld = () => dialog.getByRole('button', { name: productText('Start world'), exact: true });
+  assert(!(await dialog.getByRole('checkbox', { name: productText('Capture actual requests for this session') }).isChecked()), 'Capture enabled by default');
+  await dialog.getByLabel(productText('Requests'), { exact: true }).fill('');
+  assert(await startWorld().isDisabled(), 'Invalid limits did not block start');
+  await dialog.getByLabel(productText('Requests'), { exact: true }).pressSequentially('1');
+  await dialog.getByLabel(productText('Tokens per response'), { exact: true }).fill('128');
+  assert(await startWorld().isDisabled(), 'Changed output limit bypassed mandatory verification');
+  await dialog.getByRole('button', { name: productText('Return to model verification'), exact: true }).click();
+  await dialog.getByRole('button', { name: productText('Verify model for Agent 1 (1 request)'), exact: true }).click();
+  await dialog.getByText(productText('Verified in this tab'), { exact: true }).waitFor();
+  assert(calls === 2 && tokenLimit === 128, 'Re-verification must make exactly one request at the new limit');
+  await setupStep(page, 'Limits and start');
+  await dialog.getByRole('checkbox', { name: productText('Capture actual requests for this session') }).check();
+  await startWorld().click();
   await page.getByRole('alert').filter({ hasText: productText('The request budget is exhausted. Start a new session explicitly to make more requests.') }).waitFor();
-  assert(calls === 2, `Expected probe plus one simulation request; saw ${calls}`);
+  assert(calls === 3, `Expected two probes plus one simulation request; saw ${calls}`);
   assert(tokenLimit === 128, `Output limit changed to ${tokenLimit}`);
   assert(!(await page.evaluate(() => JSON.stringify(localStorage))).includes('synthetic-production-smoke-key'), 'Key persisted in plaintext');
   await openSimulationTool(page, 'Social Graph');
   await page.getByRole('dialog', { name: productText('Social Graph'), exact: true }).waitFor();
   await page.keyboard.press('Escape');
-  await openSimulationTool(page, 'Configuration');
-  await page.getByRole('button', { name: productText('Lock and clear session keys'), exact: true }).click();
+  await openSetup(page);
+  await setupStep(page, 'Provider keys');
+  await dialog.locator('summary', { hasText: productText('Save keys on this device (encrypted)') }).click();
+  await dialog.getByRole('button', { name: productText('Lock and clear session keys'), exact: true }).click();
+  const keyStatus = dialog.getByText(productText('Key in this tab ({masked})', { masked: '••••-key' }), { exact: true });
+  await keyStatus.waitFor({ state: 'detached' });
+  await page.keyboard.press('Escape');
   await page.getByText(productText('Ready'), { exact: true }).first().waitFor();
-  assert(await page.getByLabel(productText('Claude (Anthropic) API key'), { exact: true }).inputValue() === '', 'Key remained after locking active session');
-  assert(calls === 2, 'Locking or errors triggered a retry');
+  assert(calls === 3, 'Locking or errors triggered a retry');
   const captured = await page.evaluate(async () => {
     const db = await new Promise(resolve => { const r = indexedDB.open('simagents-app-data'); r.onsuccess = () => resolve(r.result); });
     try {
       return await new Promise(resolve => { const r = db.transaction('items').objectStore('items').index('collection').getAll('simagents_prompt_logs_v1'); r.onsuccess = () => resolve(r.result.map(row => JSON.parse(row.json)).filter(log => log.source === 'captured')); });
     } finally { db.close(); }
   });
-  assert(captured.length === 1, 'Expected only one captured simulation request, excluding probe');
+  assert(captured.length === 1, 'Expected only one captured simulation request, excluding probes');
   assert(captured[0].fullPrompt === lastRequestBody, 'Captured request differs from transmitted body');
   assert(captured[0].requestTrace.outcome === 'success', 'Wrong request outcome');
   assert(!JSON.stringify(captured).includes('synthetic-production-smoke-key'), 'Credential leaked into captured trace');
@@ -114,7 +119,7 @@ try {
     } finally { db.close(); }
   });
   await page.reload({ waitUntil: 'networkidle' });
-  await page.getByRole('button', { name: productText('Start') }).first().click();
+  await headerStart().click();
   await page.waitForFunction(() => localStorage.getItem('simagents_world_snapshot') === null);
   const migrated = await page.evaluate(async () => {
     const db = await new Promise(resolve => { const r = indexedDB.open('simagents-app-data'); r.onsuccess = () => resolve(r.result); });
@@ -122,23 +127,21 @@ try {
     finally { db.close(); }
   });
   assert(JSON.stringify(saved) === JSON.stringify(migrated), 'Migration changed the saved world or events');
-  assert(calls === 2, 'Migration or reload triggered inference');
-  assert(!(await page.getByRole('checkbox', { name: productText('Capture actual requests for this session') }).isChecked()), 'Reload silently restored capture consent');
-  await page.getByRole('button', { name: productText('Cancel'), exact: true }).click();
-  await openSimulationTool(page, 'Prompt Gallery');
-  await page.getByRole('button', { name: productText('Live Inspector') }).click();
-  await page.getByRole('combobox').selectOption(captured[0].agentId);
+  assert(calls === 3, 'Migration or reload triggered inference');
+  await page.keyboard.press('Escape');
+  await openSimulationTool(page, 'Prompts');
+  await page.getByLabel(productText('Select Agent'), { exact: true }).selectOption(captured[0].agentId);
   await page.getByRole('button').filter({ hasText: productText('Captured request') }).first().click();
   await page.getByRole('note').filter({ hasText: productText('Captured request') }).waitFor();
   await page.getByRole('button', { name: productText('Request body'), exact: true }).waitFor();
   await page.reload({ waitUntil: 'networkidle' });
-  await page.getByRole('button', { name: productText('Start') }).first().click();
-
-  await page.getByRole('button', { name: productText('Cancel'), exact: true }).click();
+  await headerStart().click();
+  await dialog.waitFor();
+  await page.keyboard.press('Escape');
   await openSimulationTool(page, 'Replay');
   await page.getByRole('note').filter({ hasText: productText('Saved replay:') }).waitFor();
   assert((await page.locator('body').innerText()).includes(productText('Events at Tick')), 'Replay did not restore after reload');
-  assert(calls === 2, 'Reading persisted replay triggered inference');
+  assert(calls === 3, 'Reading persisted replay triggered inference');
 
   await page.evaluate(async () => {
     localStorage.setItem('simagents_world_snapshot', '{broken');
@@ -147,10 +150,10 @@ try {
     finally { db.close(); }
   });
   await page.reload({ waitUntil: 'networkidle' });
-  await page.getByRole('button', { name: productText('Start') }).first().click();
+  await headerStart().click();
   await page.getByRole('alert').filter({ hasText: productText('Saved world could not be read. Existing data has been preserved.') }).waitFor();
   assert(await page.evaluate(() => localStorage.getItem('simagents_world_snapshot')) === '{broken', 'Corrupt legacy data was deleted');
-  assert(calls === 2, 'Failed migration triggered inference');
+  assert(calls === 3, 'Failed migration triggered inference');
 
   assert(workerUrl, 'Production worker was not observed');
   const rejection = await page.evaluate(async (url) => {

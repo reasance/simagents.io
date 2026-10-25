@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve, sep } from 'node:path';
 import { populatedWorld } from './fixtures/populated-world';
-import { openSimulationTool, productText, setSmokeLanguage, smokeLanguage } from './browser-helpers.mjs';
+import { openSetup, openSimulationTool, productText, saveProviderKey, setSmokeLanguage, setupDialog, setupStep, smokeLanguage, startFromSetup } from './browser-helpers.mjs';
 
 const current = resolve(process.env.SIMAGENTS_ROLLBACK_CURRENT ?? '');
 const rollback = resolve(process.env.SIMAGENTS_ROLLBACK_PREVIOUS ?? '');
@@ -58,8 +58,14 @@ page.on('pageerror', (error: Error) => errors.push(error.message));
 await setSmokeLanguage(page);
 await context.tracing.start({ screenshots: true, snapshots: true, sources: false });
 const button = (name: string) => page.getByRole('button', { name: productText(name), exact: true });
-async function configure() { await openSimulationTool(page, 'Configuration'); }
+async function configure() {
+  if (!(await setupDialog(page).isVisible())) await openSetup(page);
+  await setupStep(page, 'Provider keys');
+  const vault = setupDialog(page).locator('details').filter({ hasText: productText('Save keys on this device (encrypted)') });
+  if (!(await vault.evaluate((el: HTMLDetailsElement) => el.open))) await vault.locator('summary').click();
+}
 async function probe() {
+  await setupStep(page, 'Participants');
   await button('Verify model for Agent 1 (1 request)').click();
   await page.getByText(productText('Verified in this tab'), { exact: true }).waitFor();
 }
@@ -92,27 +98,19 @@ async function diskState() {
   });
 }
 async function resumeOneDecision() {
-  await button('Start').first().click();
-  await page.getByLabel(productText('Requests'), { exact: true }).fill('1');
-  await page.getByRole('checkbox', { name: productText('Capture actual requests for this session'), exact: true }).check();
-  await page.getByRole('dialog').getByRole('button', { name: productText('Resume'), exact: true }).click();
+  await startFromSetup(page, { requests: 1, capture: true, choice: 'resume' });
   await page.getByRole('alert').filter({ hasText: productText('The request budget is exhausted. Start a new session explicitly to make more requests.') }).waitFor();
 }
 let failed = true;
 try {
   await page.goto(base);
   await configure();
-  await page.getByLabel(productText('Claude (Anthropic) API key'), { exact: true }).fill('rollback-only-synthetic-key');
-  await button('Use Keys for This Session').click();
-  await page.getByText(productText('User Key'), { exact: true }).waitFor();
+  await saveProviderKey(page, 'Claude (Anthropic)', 'rollback-only-synthetic-key');
   await page.getByLabel(productText('Vault passphrase'), { exact: true }).fill('rollback-only-test-passphrase');
   await button('Save session keys encrypted').click();
   await page.waitForFunction(() => !!localStorage.getItem('simagents_credential_vault_v1'));
-  await probe(); await page.keyboard.press('Escape');
-  await button('Start').first().click();
-  await page.getByLabel(productText('Requests'), { exact: true }).fill('1');
-  await page.getByRole('checkbox', { name: productText('Capture actual requests for this session'), exact: true }).check();
-  await page.getByRole('dialog').getByRole('button', { name: productText('Start'), exact: true }).click();
+  await probe();
+  await startFromSetup(page, { requests: 1, capture: true });
   await page.getByRole('alert').filter({ hasText: productText('The request budget is exhausted. Start a new session explicitly to make more requests.') }).waitFor();
   assert(calls === 2, 'Initial probe/decision count changed.');
   const initial = await exportWorld();
@@ -135,7 +133,7 @@ try {
   await page.getByLabel(productText('Vault passphrase'), { exact: true }).fill('rollback-only-test-passphrase');
   await button('Unlock vault').click();
   await page.getByText(productText('Encrypted vault unlocked for this tab.'), { exact: true }).waitFor();
-  await probe(); await page.keyboard.press('Escape'); await resumeOneDecision();
+  await probe(); await resumeOneDecision();
   assert(calls === 4, 'Rollback needed extra calls or hidden retry.');
   const resumed = await exportWorld();
   assert(resumed.snapshot.worldSeed === saved.snapshot.worldSeed && resumed.snapshot.store.agents.map((a: any) => a.id).join() === saved.snapshot.store.agents.map((a: any) => a.id).join(), 'Rollback replaced the saved world/agents.');
@@ -143,7 +141,7 @@ try {
   await page.getByRole('note').filter({ hasText: productText('Saved replay:') }).waitFor();
   await page.getByLabel(productText('Inspect replay agent'), { exact: true }).selectOption(saved.snapshot.store.agents[0].id);
   await button('Exit Replay').click();
-  await openSimulationTool(page, 'Prompt Gallery'); await button('Live Inspector').click();
+  await openSimulationTool(page, 'Prompts');
   await page.getByLabel(productText('Select Agent'), { exact: true }).selectOption(saved.snapshot.store.agents[0].id);
   await page.getByRole('button').filter({ hasText: productText('Captured request') }).first().click();
   await button('Raw Response').click();

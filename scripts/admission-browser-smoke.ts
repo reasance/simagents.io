@@ -7,7 +7,7 @@ import { createAdmission, type AdmissionEnv } from '../apps/admission/src/worker
 import { createRelay, type RelayEnv } from '../apps/relay/src/worker';
 import { quotaNamespace } from '../apps/relay/src/__tests__/quota-fixture';
 import { verifyRelayToken } from '../apps/relay/src/access';
-import { openSimulationTool, productText, setSmokeLanguage, smokeLanguage } from './browser-helpers.mjs';
+import { openSetup, openSimulationTool, productText, setSmokeLanguage, setupDialog, setupStep, smokeLanguage } from './browser-helpers.mjs';
 const require = createRequire(import.meta.url);
 const playwright = process.env.PLAYWRIGHT_MODULE_DIR ? createRequire(`${process.env.PLAYWRIGHT_MODULE_DIR}/package.json`)('playwright') : require('playwright');
 const dist = resolve(process.env.SIMAGENTS_ADMISSION_TEST_DIST ?? '.tmp/admission-web');
@@ -99,26 +99,28 @@ async function exportSnapshot() {
 try {
   await page.goto(appOrigin);
   assert(await page.evaluate(() => window.__simagentsEngineClient === undefined), 'Development bridge in public build');
-  await openSimulationTool(page, 'Configuration');
-  await page.getByRole('button', { name: productText('Connections'), exact: true }).click();
-  await page.getByRole('button', { name: productText('Add connection'), exact: true }).click();
-  await page.getByLabel(productText('Connection name'), { exact: true }).fill('Autonomous fixture');
-  await page.getByLabel(productText('Connection transport'), { exact: true }).selectOption('official-relay');
-  assert(await page.getByLabel(productText('Relay access token'), { exact: true }).count() === 0, 'Autonomous build asks for an invitation token');
-  await page.getByRole('button', { name: productText('Get relay access'), exact: true }).click();
-  await page.getByText(productText('Relay access is ready in this tab.'), { exact: true }).waitFor();
+  await openSetup(page);
+  const dialog = setupDialog(page);
+  await setupStep(page, 'Provider keys');
+  await dialog.locator('summary', { hasText: productText('Custom endpoints and relays') }).click();
+  await dialog.getByRole('button', { name: productText('Add connection'), exact: true }).click();
+  await dialog.getByLabel(productText('Connection name'), { exact: true }).fill('Autonomous fixture');
+  await dialog.getByLabel(productText('Connection transport'), { exact: true }).selectOption('official-relay');
+  assert(await dialog.getByLabel(productText('Relay access token'), { exact: true }).count() === 0, 'Autonomous build asks for an invitation token');
+  await dialog.locator('.surface').getByRole('button', { name: productText('Get relay access'), exact: true }).click();
+  await dialog.locator('.surface').getByText(productText('Relay access is ready in this tab.'), { exact: true }).waitFor();
   assert(admissions === 1 && inference === 0, 'Admission inferred or retried');
-  await page.getByLabel(productText('Connection API key'), { exact: true }).fill('synthetic-provider-key');
-  await page.getByRole('button', { name: productText('Save connection'), exact: true }).click();
-  await page.getByLabel(productText('Connection for Agent 1'), { exact: true }).selectOption({ label: 'Autonomous fixture' });
-  await page.getByLabel(productText('Model for Agent 1'), { exact: true }).selectOption('__custom__');
-  await page.getByLabel(productText('Custom model ID for Agent 1'), { exact: true }).fill('fixture-model');
-  await page.getByRole('button', { name: productText('Verify model for Agent 1 (1 request)'), exact: true }).click();
-  await page.getByText(productText('Verified in this tab'), { exact: true }).waitFor();
-  await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: productText('Start'), exact: true }).first().click();
-  await page.getByLabel(productText('Duration (seconds)'), { exact: true }).fill('3600');
-  await page.getByRole('button', { name: productText('Start'), exact: true }).last().click();
+  await dialog.getByLabel(productText('Connection API key'), { exact: true }).fill('synthetic-provider-key');
+  await dialog.getByRole('button', { name: productText('Save connection'), exact: true }).click();
+  await setupStep(page, 'Participants');
+  await dialog.getByLabel(productText('Connection for Agent 1'), { exact: true }).selectOption({ label: 'Autonomous fixture' });
+  await dialog.getByLabel(productText('Model for Agent 1'), { exact: true }).selectOption('__custom__');
+  await dialog.getByLabel(productText('Custom model ID for Agent 1'), { exact: true }).fill('fixture-model');
+  await dialog.getByRole('button', { name: productText('Verify model for Agent 1 (1 request)'), exact: true }).click();
+  await dialog.getByText(productText('Verified in this tab'), { exact: true }).waitFor();
+  await setupStep(page, 'Limits and start');
+  await dialog.getByLabel(productText('Duration (seconds)'), { exact: true }).fill('3600');
+  await dialog.getByRole('button', { name: productText('Start world'), exact: true }).click();
   await page.getByRole('button', { name: productText('Pause'), exact: true }).first().waitFor();
   // Pause the world before the simulated authorization clock; this is never a soak test.
   await page.getByRole('button', { name: productText('Pause'), exact: true }).first().click();
@@ -132,8 +134,9 @@ try {
   assert(inference === callsBeforeRenewal, 'Renewal issued inference');
   const after = await exportSnapshot();
   assert(JSON.stringify(before.snapshot) === JSON.stringify(after.snapshot), 'Renewal changed the paused world');
-  await openSimulationTool(page, 'Configuration');
-  await page.getByText(productText('Verified in this tab'), { exact: true }).waitFor();
+  await openSetup(page);
+  await setupStep(page, 'Participants');
+  await setupDialog(page).getByText(productText('Verified in this tab'), { exact: true }).waitFor();
   await page.keyboard.press('Escape');
   // Require an interaction during the next automatic renewal of a running world.
   await page.getByRole('button', { name: productText('Resume'), exact: true }).first().click();

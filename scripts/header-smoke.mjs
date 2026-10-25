@@ -24,19 +24,19 @@ try {
     const bounds = await start.boundingBox();
     assert(bounds && bounds.width >= 44 && bounds.height >= 44 && bounds.x >= 0 && bounds.x + bounds.width <= width, 'Start is clipped or too small');
     await header.locator('summary').focus(); await page.keyboard.press('Enter');
-    await header.getByRole('button', { name: 'Configuration', exact: true }).waitFor();
+    await header.getByRole('button', { name: 'Advanced settings', exact: true }).waitFor();
     await page.keyboard.press('Escape');
-    assert(await page.evaluate(() => document.activeElement?.tagName === 'SUMMARY'), 'Tools focus not restored');
+    assert(await page.evaluate(() => document.activeElement?.tagName === 'SUMMARY'), 'Menu focus not restored');
     await header.locator('summary').click();
     await header.getByLabel('Language', { exact: true }).selectOption('it');
     assert(await page.locator('html').getAttribute('lang') === 'it', 'document.lang did not change');
-    await header.getByRole('button', { name: 'Configurazione', exact: true }).waitFor();
+    await header.getByRole('button', { name: 'Impostazioni avanzate', exact: true }).waitFor();
     await page.keyboard.press('Escape');
     await page.screenshot({ path: `.tmp/header/${browserName}-${width}-it.png` });
     await page.reload({ waitUntil: 'networkidle' });
     await page.locator('.app-header:visible').getByRole('button', { name: 'Avvia', exact: true }).waitFor();
     assert(foreign === 0, 'Changing interface language made a provider request');
     await context.close();
-    console.log(`PASS ${browserName} ${width}px: essential control bounds, keyboard tools, persistent language and no provider traffic.`);
+    console.log(`PASS ${browserName} ${width}px: essential control bounds, keyboard menu, persistent language and no provider traffic.`);
   }
 } finally { await browser.close(); }

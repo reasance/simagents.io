@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { createRequire } from 'node:module';
 import { mkdir } from 'node:fs/promises';
-import { openSimulationTool, productText, setSmokeLanguage, smokeLanguage } from './browser-helpers.mjs';
+import { productText, setSmokeLanguage, smokeLanguage, startFromSetup, verifyDefaultClaude } from './browser-helpers.mjs';
 const require = createRequire(import.meta.url);
 const playwright = process.env.PLAYWRIGHT_MODULE_DIR ? createRequire(`${process.env.PLAYWRIGHT_MODULE_DIR}/package.json`)('playwright') : require('playwright');
 const base = process.env.SIMAGENTS_SMOKE_URL ?? 'http://127.0.0.1:5185/';
@@ -26,59 +26,45 @@ try {
     await setSmokeLanguage(page);
     try {
       await page.goto(base);
-      await openSimulationTool(page, 'Configuration');
-      await page.getByLabel(productText('Claude (Anthropic) API key'), { exact: true }).fill('synthetic-keyboard-key');
-      await page.getByRole('button', { name: productText('Use Keys for This Session'), exact: true }).click();
-      await page.getByText(productText('User Key'), { exact: true }).waitFor();
-      await page.getByRole('button', { name: productText('Verify model for Agent 1 (1 request)'), exact: true }).click();
-      await page.getByText(productText('Verified in this tab'), { exact: true }).waitFor();
-      await page.keyboard.press('Escape');
-      await page.getByRole('button', { name: productText('Start'), exact: true }).first().click();
-      await page.getByLabel(productText('Requests'), { exact: true }).fill('1');
-      await page.getByRole('button', { name: productText('Start'), exact: true }).last().click();
+      await verifyDefaultClaude(page, 'synthetic-keyboard-key', true);
+      await startFromSetup(page, { requests: 1 });
       await page.getByRole('alert').filter({ hasText: productText('The request budget is exhausted. Start a new session explicitly to make more requests.') }).waitFor();
       assert(calls === 2, `Expected one explicit probe and one decision, saw ${calls}`);
-      if (width >= 1024) {
-        const select = page.getByRole('combobox', { name: productText('Inspect agent or resource') });
-        const agent = await select.locator('option[value^="agent:"]').first().getAttribute('value');
-        const resource = await select.locator('option[value^="resource:"]').first().getAttribute('value');
-        assert(agent && resource, 'Fixture has no selectable entities');
-        await select.focus(); await select.selectOption(agent);
+      const inspect = page.getByRole('combobox', { name: productText('Inspect agent or resource') });
+      const agent = await inspect.locator('option[value^="agent:"]').first().getAttribute('value');
+      const resource = await inspect.locator('option[value^="resource:"]').first().getAttribute('value');
+      assert(agent && resource, 'Fixture has no selectable entities');
+      if (width < 1024) {
+        const nav = page.getByRole('navigation', { name: productText('World views') });
+        await nav.getByRole('button', { name: new RegExp(productText('Participants')) }).focus(); await page.keyboard.press('Enter');
+        const row = page.locator('.participant-row').filter({ hasText: 'Agent 1' }).first();
+        await row.focus(); await page.keyboard.press('Enter');
         await page.getByText('synthetic-reported-model', { exact: true }).filter({ visible: true }).first().waitFor();
-        await select.selectOption(resource);
-        await page.getByText(productText('Quantity'), { exact: true }).filter({ visible: true }).first().waitFor();
-        await select.selectOption('');
-        const collapse = page.getByTitle(productText('Collapse sidebar'));
-        await collapse.focus(); await page.keyboard.press('Enter');
-        assert(await page.locator('#desktop-observation-panel').getAttribute('inert') !== null, 'Collapsed sidebar remains focusable');
-      } else {
-        const nav = page.locator('nav').filter({ has: page.getByRole('button', { name: productText('Map'), exact: true }) });
-        await nav.getByRole('button', { name: new RegExp(productText('Agents')) }).focus(); await page.keyboard.press('Enter');
-        const agentButton = page.getByRole('button').filter({ hasText: 'Agent 1' }).first();
-        await agentButton.focus(); await page.keyboard.press('Enter');
-        await page.getByText('synthetic-reported-model', { exact: true }).filter({ visible: true }).first().waitFor();
-        await nav.getByRole('button', { name: productText('Resources'), exact: true }).focus(); await page.keyboard.press('Enter');
-        await page.locator('.entity-row').first().focus(); await page.keyboard.press('Enter');
+        await nav.getByRole('button', { name: productText('Map'), exact: true }).focus(); await page.keyboard.press('Enter');
+        await inspect.focus(); await inspect.selectOption(resource);
         await page.getByText(productText('Quantity'), { exact: true }).filter({ visible: true }).first().waitFor();
         await nav.getByRole('button', { name: productText('Map'), exact: true }).focus(); await page.keyboard.press('Enter');
+      } else {
+        await inspect.focus(); await inspect.selectOption(agent);
+        await page.getByText('synthetic-reported-model', { exact: true }).filter({ visible: true }).first().waitFor();
+        await inspect.selectOption(resource);
+        await page.getByText(productText('Quantity'), { exact: true }).filter({ visible: true }).first().waitFor();
+        await inspect.selectOption('');
+        await page.locator('#desktop-observation-panel').getByText(productText('Participants'), { exact: true }).waitFor();
       }
-      for (const [title, minimum, maximum, reset] of [['2D Grid View', 0.5, 3, 1], ['Isometric View', 0.3, 2.5, 0.8]]) {
-        await page.locator('.simulation-tools:visible > summary').focus(); await page.keyboard.press('Enter');
-        await page.getByTitle(productText(title)).filter({ visible: true }).first().focus(); await page.keyboard.press('Enter'); await page.keyboard.press('Escape');
-        const canvas = page.getByRole('img', { name: productText('Interactive world map') }).first();
-        await canvas.focus(); const before = await canvas.getAttribute('data-camera-x');
-        await page.keyboard.press('ArrowRight'); assert(await canvas.getAttribute('data-camera-x') !== before, 'Keyboard pan did not move the view');
-        for (let n = 0; n < 20; n++) await page.keyboard.press('+');
-        assert(Number(await canvas.getAttribute('data-zoom')) === maximum, 'Keyboard zoom exceeded upper bound');
-        for (let n = 0; n < 25; n++) await page.keyboard.press('-');
-        assert(Number(await canvas.getAttribute('data-zoom')) === minimum, 'Keyboard zoom exceeded lower bound');
-        await page.keyboard.press('r'); assert(Number(await canvas.getAttribute('data-zoom')) === reset, 'Keyboard reset failed');
-      }
+      const canvas = page.getByRole('img', { name: productText('Interactive world map') }).first();
+      await canvas.focus(); const before = await canvas.getAttribute('data-camera-x');
+      await page.keyboard.press('ArrowRight'); assert(await canvas.getAttribute('data-camera-x') !== before, 'Keyboard pan did not move the view');
+      for (let n = 0; n < 20; n++) await page.keyboard.press('+');
+      assert(Number(await canvas.getAttribute('data-zoom')) === 3, 'Keyboard zoom exceeded upper bound');
+      for (let n = 0; n < 25; n++) await page.keyboard.press('-');
+      assert(Number(await canvas.getAttribute('data-zoom')) === 0.5, 'Keyboard zoom exceeded lower bound');
+      await page.keyboard.press('r'); assert(Number(await canvas.getAttribute('data-zoom')) === 1, 'Keyboard reset failed');
       assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Page overflow');
       assert(errors.length === 0, `Unhandled browser error: ${errors.join(', ')}`);
       assert(calls === 2, 'Entity or camera inspection issued inference');
       await page.screenshot({ path: `.tmp/keyboard/${browserName}-${width}-${smokeLanguage}.png` });
-      console.log(`PASS ${browserName} ${width}px ${smokeLanguage}: agent/resource selection, both canvas keyboard bounds, no overflow.`);
+      console.log(`PASS ${browserName} ${width}px ${smokeLanguage}: keyboard setup, agent/resource selection, canvas keyboard bounds, no overflow.`);
     } catch (error) {
       await page.screenshot({ path: `.tmp/keyboard/${browserName}-${width}-${smokeLanguage}-failure.png` });
       throw error;

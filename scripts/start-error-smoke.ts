@@ -2,7 +2,7 @@
 import { createRequire } from 'node:module';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { buildSoakWorld } from './fixtures/soak-world';
-import { openSimulationTool, productText, setSmokeLanguage, smokeLanguage } from './browser-helpers.mjs';
+import { openSimulationTool, productText, setSmokeLanguage, setupDialog, setupStep, smokeLanguage, verifyDefaultClaude } from './browser-helpers.mjs';
 const require = createRequire(import.meta.url);
 const pw = process.env.PLAYWRIGHT_MODULE_DIR ? createRequire(`${process.env.PLAYWRIGHT_MODULE_DIR}/package.json`)('playwright') : require('playwright');
 const base = process.env.SIMAGENTS_SMOKE_URL ?? 'http://127.0.0.1:5185/';
@@ -41,12 +41,7 @@ async function savedWorld() {
 }
 try {
   await page.goto(base);
-  await openSimulationTool(page, 'Configuration');
-  await page.getByLabel(productText('Claude (Anthropic) API key'), { exact: true }).fill('synthetic-start-error-key');
-  await page.getByRole('button', { name: productText('Use Keys for This Session'), exact: true }).click();
-  await page.getByText(productText('User Key'), { exact: true }).waitFor();
-  await page.getByRole('button', { name: productText('Verify model for Agent 1 (1 request)'), exact: true }).click();
-  await page.getByText(productText('Verified in this tab'), { exact: true }).waitFor();
+  await verifyDefaultClaude(page, 'synthetic-start-error-key');
   await page.keyboard.press('Escape');
   const fixture = await buildSoakWorld();
   await openSimulationTool(page, 'Import saved world');
@@ -54,12 +49,14 @@ try {
   const notice = page.getByRole('status').filter({ hasText: productText('World imported. Use Start to resume the saved world.') });
   await notice.waitFor(); await notice.getByRole('button', { name: productText('Close'), exact: true }).click();
   const before = await savedWorld();
-  await page.getByRole('button', { name: productText('Start'), exact: true }).first().click();
-  const resume = page.getByRole('dialog').getByRole('button', { name: productText('Resume'), exact: true });
+  await page.locator('.app-header:visible').getByRole('button', { name: productText('Start'), exact: true }).click();
+  await setupStep(page, 'Limits and start');
+  await setupDialog(page).getByRole('button', { name: new RegExp(productText('Resume saved world')) }).click();
+  const resume = setupDialog(page).getByRole('button', { name: productText('Resume world'), exact: true });
   await resume.waitFor();
   await page.evaluate(() => { (window as any).__denyWorldRead = true; });
   await resume.click();
-  await page.getByRole('dialog').getByRole('alert').filter({ hasText: productText('Saved world could not be read. Existing data has been preserved.') }).waitFor();
+  await setupDialog(page).getByRole('alert').filter({ hasText: productText('Saved world could not be read. Existing data has been preserved.') }).waitFor();
   assert(await resume.isEnabled(), 'Failed startup left the reviewed controls disabled.');
   assert(!(await page.locator('body').innerText()).includes('sensitive-sentinel'), 'Startup exposed the raw failure payload.');
   await page.evaluate(() => { (window as any).__denyWorldRead = false; });

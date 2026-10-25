@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { openSimulationTool, productText, setSmokeLanguage } from './browser-helpers.mjs';
+import { openSetup, productText, saveProviderKey, setSmokeLanguage, setupDialog, setupStep } from './browser-helpers.mjs';
 // Real browser crypto, synthetic credentials only, no external network.
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
@@ -15,7 +15,14 @@ const errors = [];
 page.on('pageerror', (error) => errors.push(error.message));
 const passphrase = 'smoke-only-vault-passphrase';
 const secret = 'fixture-api-secret-not-real';
-async function config() { await openSimulationTool(page, 'Configuration'); }
+async function config() {
+  if (!(await setupDialog(page).isVisible())) await openSetup(page);
+  await setupStep(page, 'Provider keys');
+  const vault = setupDialog(page).locator('details').filter({ hasText: productText('Save keys on this device (encrypted)') });
+  if (!(await vault.evaluate(el => el.open))) await vault.locator('summary').click();
+}
+const claudeStatus = () => setupDialog(page).getByText(new RegExp(productText('Key in this tab ({masked})', { masked: '••••' }).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace('••••', '••••.{4}')));
+const noKey = async () => (await claudeStatus().count()) === 0;
 async function fillPhrase(value = passphrase) { await page.getByLabel(productText('Vault passphrase'), { exact: true }).fill(value); }
 async function click(name) { await page.getByRole('button', { name: productText(name), exact: true }).click(); }
 async function stored() { return page.evaluate(() => JSON.stringify(localStorage)); }
@@ -23,9 +30,7 @@ function assert(condition, message) { if (!condition) throw new Error(message); 
 try {
   await page.goto(baseUrl);
   await config();
-  await page.getByLabel(productText('Claude (Anthropic) API key'), { exact: true }).fill(secret);
-  await click('Use Keys for This Session');
-  await page.waitForFunction(() => !document.body.innerText.includes('Applying...'));
+  await saveProviderKey(page, 'Claude (Anthropic)', secret);
   assert(!(await stored()).includes(secret), 'plaintext credential persisted');
   await fillPhrase();
   await click('Save session keys encrypted');
@@ -34,23 +39,23 @@ try {
   await page.reload();
   await config();
   await page.getByText(productText('Encrypted vault locked.'), { exact: true }).waitFor();
-  assert(await page.getByLabel(productText('Claude (Anthropic) API key'), { exact: true }).inputValue() === '', 'reload restored credentials without unlock');
+  assert(await noKey(), 'reload restored credentials without unlock');
   await fillPhrase('wrong-passphrase-for-test');
   await click('Unlock vault');
   await page.getByText(productText('The vault could not be unlocked. Check the passphrase; the existing keys were preserved.'), { exact: true }).waitFor();
   await fillPhrase();
   await click('Unlock vault');
   await page.getByText(productText('Encrypted vault unlocked for this tab.'), { exact: true }).waitFor();
-  assert((await page.getByLabel(productText('Claude (Anthropic) API key'), { exact: true }).inputValue()).startsWith('****'), 'unlock did not restore key');
+  await claudeStatus().waitFor();
   await click('Lock and clear session keys');
   await page.getByText(productText('Encrypted vault locked.'), { exact: true }).waitFor();
-  assert(await page.getByLabel(productText('Claude (Anthropic) API key'), { exact: true }).inputValue() === '', 'lock retained session key');
+  assert(await noKey(), 'lock retained session key');
   await click('Remove saved vault');
   await page.waitForFunction(() => !localStorage.getItem('simagents_credential_vault_v1'));
   await page.evaluate((secret) => localStorage.setItem('simagents_api_keys', JSON.stringify({ claude: secret })), secret);
   await page.reload();
   await config();
-  assert(await page.getByLabel(productText('Claude (Anthropic) API key'), { exact: true }).inputValue() === '', 'legacy key automatically loaded');
+  assert(await noKey(), 'legacy key automatically loaded');
   await fillPhrase();
   await click('Encrypt and migrate old keys');
   await page.waitForFunction(() => !localStorage.getItem('simagents_api_keys') && !!localStorage.getItem('simagents_credential_vault_v1'));

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { openSimulationTool } from './browser-helpers.mjs';
+import { openSetup, openSimulationTool, setupDialog, setupStep, startFromSetup } from './browser-helpers.mjs';
 
 import { createRequire } from 'node:module';
 import { readFile } from 'node:fs/promises';
@@ -115,7 +115,9 @@ async function openPage(context) {
   page.setDefaultTimeout(15_000);
   await page.goto(baseUrl, { waitUntil: 'networkidle' });
   if (await page.evaluate(() => localStorage.getItem('simagents_api_keys') !== null)) {
-    await openSimulationTool(page, 'Configuration');
+    await openSetup(page);
+    await setupStep(page, 'Provider keys');
+    await setupDialog(page).locator('summary', { hasText: 'Save keys on this device (encrypted)' }).click();
     await page.getByRole('button', { name: 'Move old keys to this session', exact: true }).click();
     await page.waitForFunction(() => localStorage.getItem('simagents_api_keys') === null);
     await page.keyboard.press('Escape');
@@ -124,19 +126,7 @@ async function openPage(context) {
 }
 
 async function clickStart(page, choice = 'new') {
-  await page.getByRole('button', { name: /^(Start|Go)$/ }).first().click();
-
-  if (choice === 'resume') {
-    await page.getByRole('button', { name: /Resume saved world/i }).click();
-    await page.getByRole('button', { name: /^Resume$/ }).click();
-  } else {
-    const newWorld = page.getByRole('button', { name: /Start new world/i });
-    if ((await newWorld.count()) > 0) {
-      await newWorld.click();
-    }
-    await page.getByRole('button', { name: /^Start$/ }).last().click();
-  }
-
+  await startFromSetup(page, { choice });
   await page.getByRole('button', { name: /Pause/ }).waitFor();
 }
 
@@ -180,49 +170,41 @@ async function snapshot(page) {
 }
 
 async function verifyLocalAnalytics(page) {
-  await openSimulationTool(page, 'Analytics');
-  await page.waitForFunction(() => document.body.innerText.includes('Analytics Dashboard'));
-  await page.waitForFunction(() => document.body.innerText.toLowerCase().includes('alive agents by llm'));
-
+  await openSimulationTool(page, 'Relations');
+  await page.waitForFunction(() => document.body.innerText.includes('Relations Metrics'));
   const visible = await page.evaluate(() => {
     const text = document.body.innerText;
-    const normalizedText = text.toLowerCase();
     return {
-      dashboard: text.includes('Analytics Dashboard'),
+      relations: text.includes('Relations Metrics'),
       survival: text.includes('Survival Metrics'),
-      economy: text.includes('Economy Metrics'),
       behavior: text.includes('Behavior Metrics'),
       temporal: text.includes('Temporal Metrics'),
-      aliveByLlm: normalizedText.includes('alive agents by llm'),
+      noEconomy: !text.includes('Economy Metrics') && !text.includes('Gini'),
     };
   });
   results.push({ step: 'local-analytics', ...visible });
-  assertSmoke(
-    Object.values(visible).every(Boolean),
-    'local analytics dashboard did not render expected metric sections',
-    visible
-  );
+  assertSmoke(Object.values(visible).every(Boolean), 'relations page did not render the expected sections', visible);
 
   await page.getByRole('button', { name: 'Export agents CSV' }).waitFor();
   const relations = await page.evaluate((names) => {
-    const section = [...document.querySelectorAll('section')].find((node) => node.textContent?.includes('Relations Metrics'));
+    const section = [...document.querySelectorAll('section')].find((node) => node.getAttribute('aria-label') === 'Relations Metrics');
     const rows = [...(section?.querySelectorAll('tbody tr') ?? [])].map((row) => row.textContent ?? '');
     return { section: !!section, rows: rows.length, everyAgent: names.every((name) => rows.some((row) => row.includes(name))) };
   }, baselineRoster.map((entry) => entry.name));
   results.push({ step: 'local-relations', ...relations });
   assertSmoke(relations.section && relations.rows === baselineRoster.length && relations.everyAgent, 'relations panel did not list every agent', relations);
 
-  await page.getByRole('button', { name: /Back to City/ }).click();
+  await openSimulationTool(page, 'World');
   await page.waitForFunction(() => document.body.innerText.includes('Paused'));
 }
 
 async function verifyLocalReplay(page) {
   await openSimulationTool(page, 'Replay');
-  await page.waitForFunction(() => document.body.innerText.includes('Time Travel Replay'));
+  await page.waitForFunction(() => document.body.innerText.includes('Step through saved frames'));
   const visible = await page.evaluate(() => {
     const text = document.body.innerText;
     return {
-      replay: text.includes('Time Travel Replay'),
+      replay: text.includes('Step through saved frames'),
       events: text.includes('Events at Tick') || text.includes('No events at this tick'),
       frameStored: true,
     };
@@ -235,31 +217,9 @@ async function verifyLocalReplay(page) {
   await page.waitForFunction(() => document.body.innerText.includes('Paused'));
 }
 
-async function verifyLocalPuzzles(page) {
-  await openSimulationTool(page, 'Puzzle Games');
-  await page.waitForFunction(() => document.body.innerText.includes('Puzzle Games'));
-  await page.getByRole('button', { name: /Stats/ }).click();
-  await page.waitForFunction(() => (
-    document.body.innerText.includes('Total Games') ||
-    document.body.innerText.includes('No stats available')
-  ));
-  const visible = await page.evaluate(() => {
-    const text = document.body.innerText;
-    return {
-      puzzles: text.includes('Puzzle Games'),
-      stats: text.includes('Total Games') || text.includes('No stats available'),
-    };
-  });
-  results.push({ step: 'local-puzzles', ...visible });
-  assertSmoke(visible.puzzles && visible.stats, 'local puzzles page did not render stats');
-  await page.getByRole('button', { name: /Back to City/ }).click();
-  await page.waitForFunction(() => document.body.innerText.includes('Paused'));
-}
-
 async function verifyPromptEditorAndInspector(page) {
-  await openSimulationTool(page, 'Configuration');
-  await page.waitForFunction(() => document.body.innerText.includes('LLM API Keys'));
-  await page.locator('button:has-text("Agent System Prompt")').click();
+  await openSimulationTool(page, 'Advanced settings');
+  await page.waitForFunction(() => document.body.innerText.includes('Agent System Prompt'));
   const prompt = page.locator('textarea[placeholder="Enter your custom system prompt..."]').first();
   await prompt.fill('You are a local smoke-test agent. Return only valid action JSON.');
   await page.getByRole('button', { name: /Apply Changes/ }).click();
@@ -271,9 +231,7 @@ async function verifyPromptEditorAndInspector(page) {
   ));
   await page.getByRole('button', { name: 'Close configuration panel', exact: true }).click();
 
-  await openSimulationTool(page, 'Prompt Gallery');
-  await page.waitForFunction(() => document.body.innerText.includes('Prompt Gallery'));
-  await page.getByRole('button', { name: /Live Inspector/ }).click();
+  await openSimulationTool(page, 'Prompts');
   await page.waitForFunction(() => (
     document.body.innerText.includes('Live Inspector Active') ||
     document.body.innerText.includes('No Prompt Logs Yet')
@@ -290,7 +248,7 @@ async function verifyPromptEditorAndInspector(page) {
   results.push({ step: 'local-prompts', customPromptStored, ...inspector });
   assertSmoke(customPromptStored, 'custom prompt was not persisted locally');
   assertSmoke(inspector.active || inspector.noData, 'local prompt inspector did not render');
-  await page.getByRole('button', { name: /Back to City/ }).click();
+  await openSimulationTool(page, 'World');
   await page.waitForFunction(() => document.body.innerText.includes('Paused'));
 }
 
@@ -348,7 +306,6 @@ async function runBaselinePersistence(browser) {
   assertSmoke(afterPause.metrics?.complete && afterPause.metrics.totalEvents >= afterPause.store.events.length, 'cumulative counters missing');
   await verifyLocalAnalytics(page);
   await verifyLocalReplay(page);
-  await verifyLocalPuzzles(page);
   await verifyPromptEditorAndInspector(page);
   await verifyBrowserExperiment(page);
 
@@ -468,28 +425,20 @@ async function runProxyMissing(browser) {
   );
   const page = await openPage(context);
 
-  await openSimulationTool(page, 'Configuration');
-  const select = page.locator('select').filter({ has: page.locator('option[value="codex"]') }).first();
-  const codexOption = select.locator('option[value="codex"]');
-  results.push({
-    step: 'proxy-missing-ui',
-    codexOptionText: await codexOption.textContent(),
-    codexOptionDisabled: await codexOption.evaluate((option) => option.disabled),
-  });
-  const proxyMissingUi = results.at(-1);
-  assertSmoke(proxyMissingUi.codexOptionDisabled === true, 'proxy-required provider option is not disabled without proxy', {
-    actual: proxyMissingUi.codexOptionDisabled,
-  });
-  assertSmoke(
-    typeof proxyMissingUi.codexOptionText === 'string' && proxyMissingUi.codexOptionText.includes('needs proxy'),
-    'proxy-required provider option does not show needs-proxy label',
-    { actual: proxyMissingUi.codexOptionText }
-  );
-
+  await openSetup(page);
+  await setupStep(page, 'Provider keys');
+  const openaiRow = setupDialog(page).locator('.key-row').filter({ hasText: 'OpenAI' }).first();
+  // With an official relay in the build the row offers it; without one it asks for the user's relay.
+  const relayNotice = await openaiRow.getByText('does not accept calls from a browser').count();
+  const relayRoutes = await openaiRow.locator('option[value="official-relay"], option[value="user-relay"]').count();
+  const directOffered = await openaiRow.locator('option[value="direct"]').count();
+  results.push({ step: 'proxy-missing-ui', relayNotice, relayRoutes, directOffered });
+  assertSmoke(directOffered === 0 && (relayNotice === 1 || relayRoutes > 0), 'proxy-required provider offers a direct route or does not explain the relay');
   await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: /^(Start|Go)$/ }).first().click();
-  await page.getByRole('alert').filter({ hasText: 'configure an HTTPS relay' }).waitFor();
-  const blocked = await page.getByRole('button', { name: /^Start$/ }).last().isDisabled();
+
+  await page.locator('.app-header:visible').getByRole('button', { name: 'Start', exact: true }).click();
+  await setupDialog(page).getByRole('status').filter({ hasText: 'configure an HTTPS relay' }).waitFor();
+  const blocked = await setupDialog(page).getByRole('navigation', { name: 'Setup progress' }).getByRole('button', { name: /Limits and start/ }).isDisabled();
   results.push({ step: 'proxy-missing-run', startBlocked: blocked });
   assertSmoke(blocked, 'missing-proxy session was not blocked before start');
 

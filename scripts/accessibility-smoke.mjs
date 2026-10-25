@@ -19,7 +19,7 @@ try {
     await page.goto(base, { waitUntil: 'networkidle' });
     for (const surface of ['ready', 'setup', 'configuration']) {
       if (surface === 'setup') await page.getByRole('button', { name: productText('Set up a simulation'), exact: true }).click();
-      if (surface === 'configuration') { await page.keyboard.press('Escape'); await openSimulationTool(page, 'Configuration'); }
+      if (surface === 'configuration') { await page.keyboard.press('Escape'); await openSimulationTool(page, 'Advanced settings'); }
       const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
       await writeFile(`.tmp/accessibility/${browserName}-${width}-${smokeLanguage}-${surface}.json`, JSON.stringify(result, null, 2));
       if (result.violations.length) {
