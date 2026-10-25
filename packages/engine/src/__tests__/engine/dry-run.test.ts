@@ -5,7 +5,7 @@ import { buildObservation } from '../../agents/observer';
 import { createAgent, getAliveAgents } from '../../engine-memory/queries/agents';
 import { resetStore } from '../../engine-memory/store';
 import { createRosterProviderFactory } from '../../engine/llm/roster-factory';
-import { DRY_RUN_MODEL_PREFIX, dryRunLatencyMs } from '../../engine/llm/dry-run-provider';
+import { DRY_RUN_MODEL_PREFIX } from '../../engine/llm/dry-run-provider';
 import type { RequestTrace } from '../../engine/llm/request-trace';
 import { isUndecided } from '../../engine/decision';
 
@@ -45,12 +45,22 @@ test('a dry run reads no key, sends nothing and answers with a parsed decision a
   expect(JSON.parse(traces[0].requestBody)).toMatchObject({ dryRun: true });
 });
 
-test('higher effort waits longer for the same model and draw', () => {
-  const at = (level: Parameters<typeof dryRunLatencyMs>[1]) => dryRunLatencyMs('claude-sonnet-5-5', level, () => 0.5);
-  expect(at('low')).toBeLessThan(at('medium'));
-  expect(at('medium')).toBeLessThan(at('high'));
-  expect(at('high')).toBeLessThan(at('max'));
-  expect(at(undefined)).toBeLessThan(at('low'));
+test('higher effort waits longer for the same model and draw', async () => {
+  await createAgent({ id: 'a', name: 'Agent 1', llmType: 'claude', x: 10, y: 10 });
+  const [self] = await getAliveAgents();
+  const observation = await buildObservation(self, 0, [self], [], []);
+  const wait = async (reasoningLevel?: string) => {
+    let waited = 0;
+    const factory = createRosterProviderFactory([{ id: 'entry-a', name: 'Agent 1', provider: 'claude', modelId: getDefaultModelId('claude'), reasoningLevel, color: '#000000' }],
+      { getKey: () => undefined }, { dryRun: true });
+    await factory(self, { sleepWall: async (ms) => { waited = ms; } }).decide({ agent: self, observation, rng: () => 0.5 }, new AbortController().signal);
+    return waited;
+  };
+  const [none, low, medium, high, max] = [await wait(), await wait('low'), await wait('medium'), await wait('high'), await wait('max')];
+  expect(none).toBeLessThan(low);
+  expect(low).toBeLessThan(medium);
+  expect(medium).toBeLessThan(high);
+  expect(high).toBeLessThan(max);
 });
 
 test('a dry run speaks to whoever is within earshot when it is not in need', async () => {

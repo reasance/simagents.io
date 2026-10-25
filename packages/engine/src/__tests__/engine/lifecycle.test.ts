@@ -59,9 +59,10 @@ describe('explicit session lifecycle', () => {
     expect([...store.agents.values()][0].state).toBe('idle');
   });
 
-  test('provider errors stop the world without a fallback action', async () => {
+  test('an unclassified decision error stops the world without a fallback action', async () => {
     const errors: unknown[] = [];
-    const engine = make(async () => { throw new Error('fixture quota exceeded'); }, (e) => errors.push(e));
+    // Classified provider failures leave only that agent unresponsive (failure-isolation.test.ts).
+    const engine = make(async () => { throw new Error('fixture engine fault'); }, (e) => errors.push(e));
     await engine.seed({ agentCount: 1 });
     await engine.start();
     await turn();

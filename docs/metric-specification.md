@@ -14,7 +14,6 @@ Metric claims in SimAgents must identify the metric tier and the failure mode be
 | Metric | Tier | Formula | Notes | Failure Mode |
 |--------|------|---------|-------|--------------|
 | Survival rate | validated | `alive_at_end / alive_at_start` | Derived from persisted snapshots | Incorrect if initial snapshot is missing |
-| Gini coefficient | validated | standard Gini over alive-agent balances | Computed from stored balances | Sensitive to tiny populations |
 | Average wealth | descriptive | mean balance of alive agents | Useful state summary | Can hide inequality tails |
 | Trade count | descriptive | final cumulative `agent_traded` count | Good for throughput | Not a direct measure of cooperation quality |
 | Conflict count | descriptive | final cumulative harm/steal count | Good for incident volume | Does not capture severity distribution |

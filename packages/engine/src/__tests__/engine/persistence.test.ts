@@ -110,4 +110,9 @@ describe('nested import validation', () => {
     snapshot.engine.agentMeta = [['x', {} as never]];
     expect(() => hydrateWorld(snapshot)).toThrow();
   });
+  test('rejects a dry run flag that is not a boolean', () => {
+    const snapshot = serializeWorld({ savedAtSimTimeMs: 0, worldSeed: 'test', speed: 1 });
+    snapshot.configuration = { ...snapshot.configuration!, dryRun: 'yes' as never };
+    expect(() => validateWorldSnapshotV1(snapshot)).toThrow('Invalid dry run flag');
+  });
 });

@@ -5,7 +5,6 @@ import { useAgentStatsStore } from './agentStats';
  */
 
 import { create } from 'zustand';
-import { useShallow } from 'zustand/react/shallow';
 import { useWorldStore, type Agent, type WorldEvent } from './world';
 
 // =============================================================================
@@ -32,22 +31,6 @@ export interface SurvivalMetrics {
     exhaustion: number;
     other?: number;
   };
-}
-
-export interface EconomyMetrics {
-  moneySupply: number;
-  giniCoefficient: number;
-  balanceDistribution: {
-    min: number;
-    max: number;
-    median: number;
-    mean: number;
-  };
-  byLlmType: {
-    llmType: string;
-    totalBalance: number;
-    avgBalance: number;
-  }[];
 }
 
 export interface BehaviorMetrics {
@@ -82,7 +65,6 @@ export interface TemporalMetrics {
 
 export interface AnalyticsSnapshot {
   survival: SurvivalMetrics;
-  economy: EconomyMetrics;
   behavior: BehaviorMetrics;
   temporal: TemporalMetrics;
   timestamp: number;
@@ -92,35 +74,18 @@ export interface AnalyticsSnapshot {
 // Store
 // =============================================================================
 
-type TabType = 'survival' | 'economy' | 'behavior' | 'temporal';
-
 interface AnalyticsState {
   // Data
   survival: SurvivalMetrics | null;
-  economy: EconomyMetrics | null;
   behavior: BehaviorMetrics | null;
   temporal: TemporalMetrics | null;
-
-  // UI State
-  isLoading: boolean;
   lastUpdated: number | null;
-  activeTab: TabType;
-  isVisible: boolean;
-
-  // Actions
   fetchSnapshot: () => Promise<void>;
-  fetchSurvival: () => Promise<void>;
-  fetchEconomy: () => Promise<void>;
-  fetchBehavior: () => Promise<void>;
-  fetchTemporal: () => Promise<void>;
-  setActiveTab: (tab: TabType) => void;
-  toggleVisibility: () => void;
-  setVisible: (visible: boolean) => void;
 }
 
 type AnalyticsDataState = Pick<
   AnalyticsState,
-  'survival' | 'economy' | 'behavior' | 'temporal' | 'lastUpdated'
+  'survival' | 'behavior' | 'temporal' | 'lastUpdated'
 >;
 
 interface LocalActionEvent {
@@ -131,7 +96,6 @@ interface LocalActionEvent {
 function snapshotToState(data: AnalyticsSnapshot): AnalyticsDataState {
   return {
     survival: data.survival,
-    economy: data.economy,
     behavior: data.behavior,
     temporal: data.temporal,
     lastUpdated: data.timestamp,
@@ -141,32 +105,6 @@ function snapshotToState(data: AnalyticsSnapshot): AnalyticsDataState {
 function average(values: number[]): number {
   if (values.length === 0) return 0;
   return values.reduce((sum, value) => sum + value, 0) / values.length;
-}
-
-function median(values: number[]): number {
-  if (values.length === 0) return 0;
-  const sorted = [...values].sort((a, b) => a - b);
-  const middle = Math.floor(sorted.length / 2);
-  if (sorted.length % 2 === 0) {
-    return (sorted[middle - 1] + sorted[middle]) / 2;
-  }
-  return sorted[middle];
-}
-
-function clampRatio(value: number): number {
-  return Math.max(0, Math.min(1, value));
-}
-
-export function calculateGini(values: number[]): number {
-  const sorted = values.filter(value => Number.isFinite(value) && value >= 0).sort((a, b) => a - b);
-  const total = sorted.reduce((sum, value) => sum + value, 0);
-  if (sorted.length === 0 || total <= 0) return 0;
-
-  const weightedDiff = sorted.reduce(
-    (sum, value, index) => sum + (2 * (index + 1) - sorted.length - 1) * value,
-    0
-  );
-  return clampRatio(weightedDiff / (sorted.length * total));
 }
 
 function isAgentAlive(agent: Agent): boolean {
@@ -241,31 +179,6 @@ function buildSurvivalMetrics(agents: Agent[], events: WorldEvent[]): SurvivalMe
       totalAgents: agents.length,
     },
     deathCauses: buildDeathCauses(agents, events),
-  };
-}
-
-function buildEconomyMetrics(agents: Agent[]): EconomyMetrics {
-  const aliveAgents = agents.filter(isAgentAlive);
-  const balances = aliveAgents.map((agent) => agent.balance);
-  const moneySupply = balances.reduce((sum, balance) => sum + balance, 0);
-
-  return {
-    moneySupply,
-    giniCoefficient: calculateGini(balances),
-    balanceDistribution: {
-      min: balances.length > 0 ? Math.min(...balances) : 0,
-      max: balances.length > 0 ? Math.max(...balances) : 0,
-      median: median(balances),
-      mean: average(balances),
-    },
-    byLlmType: groupAgentsByLlm(aliveAgents).map(([llmType, llmAgents]) => {
-      const totalBalance = llmAgents.reduce((sum, agent) => sum + agent.balance, 0);
-      return {
-        llmType,
-        totalBalance,
-        avgBalance: average(llmAgents.map((agent) => agent.balance)),
-      };
-    }),
   };
 }
 
@@ -422,7 +335,6 @@ function buildLocalAnalyticsSnapshot(): AnalyticsSnapshot {
   if (metrics) survival.deathCauses = { starvation: metrics.deaths.starvation, exhaustion: metrics.deaths.exhaustion, other: metrics.deaths.other };
   return {
     survival,
-    economy: buildEconomyMetrics(agents),
     behavior: metrics ? cumulativeBehavior(metrics) : buildBehaviorMetrics(agents, events),
     temporal: metrics ? { currentTick: tick, totalEvents: metrics.totalEvents,
       tickDurations: metrics.recentTicks.slice(-30).map(t => ({ tick: t.tick, duration: t.maxDecisionMs, agentCount: t.agentCount, actionsExecuted: t.actions })),
@@ -432,85 +344,15 @@ function buildLocalAnalyticsSnapshot(): AnalyticsSnapshot {
   };
 }
 
-export const useAnalyticsStore = create<AnalyticsState>((set, get) => ({
-  // Initial state
+export const useAnalyticsStore = create<AnalyticsState>((set) => ({
   survival: null,
-  economy: null,
   behavior: null,
   temporal: null,
-  isLoading: false,
   lastUpdated: null,
-  activeTab: 'survival',
-  isVisible: false,
-
-  // Fetch all analytics at once
-  fetchSnapshot: async () => {
-    set({ isLoading: true });
-    set({
-      ...snapshotToState(buildLocalAnalyticsSnapshot()),
-      isLoading: false,
-    });
-  },
-
-  // Fetch individual metrics
-  fetchSurvival: async () => {
-    const { survival, timestamp } = buildLocalAnalyticsSnapshot();
-    set({ survival, lastUpdated: timestamp });
-  },
-
-  fetchEconomy: async () => {
-    const { economy, timestamp } = buildLocalAnalyticsSnapshot();
-    set({ economy, lastUpdated: timestamp });
-  },
-
-  fetchBehavior: async () => {
-    const { behavior, timestamp } = buildLocalAnalyticsSnapshot();
-    set({ behavior, lastUpdated: timestamp });
-  },
-
-  fetchTemporal: async () => {
-    const { temporal, timestamp } = buildLocalAnalyticsSnapshot();
-    set({ temporal, lastUpdated: timestamp });
-  },
-
-  // UI actions
-  setActiveTab: (tab) => set({ activeTab: tab }),
-  toggleVisibility: () => set((state) => ({ isVisible: !state.isVisible })),
-  setVisible: (visible) => set({ isVisible: visible }),
+  fetchSnapshot: async () => { set(snapshotToState(buildLocalAnalyticsSnapshot())); },
 }));
 
-// =============================================================================
-// Selectors (individual to avoid re-render issues)
-// =============================================================================
-
-// Data selectors
 export const useSurvivalMetrics = () => useAnalyticsStore((s) => s.survival);
-export const useEconomyMetrics = () => useAnalyticsStore((s) => s.economy);
 export const useBehaviorMetrics = () => useAnalyticsStore((s) => s.behavior);
 export const useTemporalMetrics = () => useAnalyticsStore((s) => s.temporal);
-export const useAnalyticsLoading = () => useAnalyticsStore((s) => s.isLoading);
-export const useAnalyticsLastUpdated = () => useAnalyticsStore((s) => s.lastUpdated);
-
-// UI selectors
-export const useActiveTab = () => useAnalyticsStore((s) => s.activeTab);
-export const useIsAnalyticsVisible = () => useAnalyticsStore((s) => s.isVisible);
-export const useSetActiveTab = () => useAnalyticsStore((s) => s.setActiveTab);
-export const useToggleVisibility = () => useAnalyticsStore((s) => s.toggleVisibility);
 export const useFetchSnapshot = () => useAnalyticsStore((s) => s.fetchSnapshot);
-
-// Legacy compound hooks (for convenience, using useShallow)
-export const useAnalytics = () => useAnalyticsStore(useShallow((state) => ({
-  survival: state.survival,
-  economy: state.economy,
-  behavior: state.behavior,
-  temporal: state.temporal,
-  isLoading: state.isLoading,
-  lastUpdated: state.lastUpdated,
-})));
-
-export const useAnalyticsUI = () => useAnalyticsStore(useShallow((state) => ({
-  activeTab: state.activeTab,
-  isVisible: state.isVisible,
-  setActiveTab: state.setActiveTab,
-  toggleVisibility: state.toggleVisibility,
-})));

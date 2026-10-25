@@ -4,7 +4,6 @@ import {
   expirePuzzleGames,
   getActivePuzzleGames,
   getPuzzleGameById,
-  setPuzzleGameWinner,
 } from '../../engine-memory/queries/puzzles';
 import { resetStore } from '../../engine-memory/store';
 
@@ -88,21 +87,5 @@ describe('puzzle queries', () => {
     expect((await getPuzzleGameById('active-expired'))?.status).toBe('expired');
     expect((await getPuzzleGameById('open-future'))?.status).toBe('open');
     expect((await getPuzzleGameById('completed-past'))?.status).toBe('completed');
-  });
-
-  test('records a winner by completing the puzzle game', async () => {
-    await createPuzzleGame({
-      id: 'winner-game',
-      gameType: 'fragment-chase',
-      status: 'active',
-      solution: 'alpha',
-      createdAtTick: 1,
-    });
-
-    await setPuzzleGameWinner('winner-game', 'agent-1');
-
-    const game = await getPuzzleGameById('winner-game');
-    expect(game?.status).toBe('completed');
-    expect(game?.winnerId).toBe('agent-1');
   });
 });

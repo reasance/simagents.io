@@ -53,7 +53,7 @@ const PLACE_NAMES = ['North Spring', 'Stone Ford', 'Quiet Field', 'Red Hollow', 
 /** Wall-clock seconds a turn takes at each effort, before per-model and per-turn variation. */
 const EFFORT_MS: Record<string, number> = { none: 900, minimal: 1200, low: 1600, medium: 3000, high: 5000, xhigh: 7000, max: 9000 };
 
-export function dryRunLatencyMs(modelId: string, level: ReasoningLevel | undefined, rng: RandomSource): number {
+function dryRunLatencyMs(modelId: string, level: ReasoningLevel | undefined, rng: RandomSource): number {
   let base: number;
   if (level === undefined || level === false || level === 0) base = EFFORT_MS.none;
   else if (level === true) base = EFFORT_MS.medium;
@@ -70,7 +70,7 @@ const pick = <T>(items: readonly T[], rng: RandomSource): T => items[Math.floor(
 const distance = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 
 /** A decision a careless but alive agent might make: survive first, then talk, share or name places. */
-export function dryRunDecision(ctx: DecisionContext): ActionDecision & { notes?: string } {
+function dryRunDecision(ctx: DecisionContext): ActionDecision & { notes?: string } {
   const obs = ctx.observation as AgentObservation;
   const self = obs.self ?? { id: ctx.agent.id, x: ctx.agent.x, y: ctx.agent.y, hunger: ctx.agent.hunger, energy: ctx.agent.energy };
   const config = getRuntimeConfig().actions;
