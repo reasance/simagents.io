@@ -88,7 +88,7 @@ try {
   const dialog = setupDialog(page);
   await dialog.waitFor(); await audit('onboarding-keys');
   await saveProviderKey(page, 'Claude (Anthropic)', 'synthetic-public-ui-key');
-  await setupStep(page, 'Participants');
+  await setupStep(page, 'Participants', keyboardOnly);
   const skyLabel = productText('Use {color} for {agent}', { color: productText('Sky'), agent: 'Agent 1' });
   const sky = dialog.getByRole('button', { name: skyLabel, exact: true });
   await sky.press('Space');
@@ -106,13 +106,16 @@ try {
     closeGeometry.rect.width >= 44 && closeGeometry.rect.height >= 44, `Setup close control is clipped or smaller than 44 CSS pixels: ${JSON.stringify(closeGeometry)}`);
   result.setupCloseGeometry = closeGeometry;
   await audit('setup-participants');
-  await setupStep(page, 'Limits and start');
+  await setupStep(page, 'Limits and start', keyboardOnly);
   await dialog.getByLabel(productText('Requests'), { exact: true }).fill('2');
   const capture = dialog.getByRole('checkbox', { name: productText('Capture actual requests for this session'), exact: true });
+  // Let the scroll that brought the filled field into view finish; Firefox can drop a focus scroll issued during it.
+  const nextFrames = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await nextFrames();
   await capture.focus();
-  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-  const captureGeometry = await capture.evaluate(el => { const r = el.getBoundingClientRect(); return { rect: r.toJSON(), visible: r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight }; });
-  assert(captureGeometry.visible, 'Focused request-capture consent is outside the viewport');
+  await nextFrames();
+  const captureGeometry = await capture.evaluate(el => { const r = el.getBoundingClientRect(); return { rect: r.toJSON(), viewport: { width: innerWidth, height: innerHeight }, visible: r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight }; });
+  assert(captureGeometry.visible, `Focused request-capture consent is outside the viewport: ${JSON.stringify(captureGeometry)}`);
   const startActions = await dialog.locator('.setup-footer button').evaluateAll(buttons => buttons.map(el => ({ label: el.textContent.trim(), rect: el.getBoundingClientRect().toJSON(), viewportWidth: innerWidth, viewportHeight: innerHeight })));
   assert(startActions.length >= 2 && startActions.every(({ rect: r, viewportWidth: w, viewportHeight: h }) => r.width >= 44 && r.height >= 44 && r.left >= 0 && r.right <= w && r.top >= 0 && r.bottom <= h), `Start actions are clipped or smaller than 44 pixels: ${JSON.stringify(startActions)}`);
   result.startReviewGeometry = { capture: captureGeometry, actions: startActions };

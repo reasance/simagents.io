@@ -54,19 +54,19 @@ export async function openSetup(page, keyboardOnly = false) {
   await setupDialog(page).waitFor();
 }
 /** Move to a setup step: the progress rail on wide screens, Back and Continue on narrow ones. */
-export async function setupStep(page, label) {
+export async function setupStep(page, label, keyboardOnly = false) {
   const dialog = setupDialog(page);
   const target = SETUP_STEPS.indexOf(label);
   const rail = dialog.getByRole('navigation', { name: productText('Setup progress') });
   if (await rail.isVisible()) {
-    await rail.getByRole('button', { name: new RegExp(productText(label).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }).click();
+    await activateControl(rail.getByRole('button', { name: new RegExp(productText(label).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }), keyboardOnly);
   } else {
     for (let n = 0; n < SETUP_STEPS.length; n++) {
       // textContent, not innerText: the heading is uppercased by CSS only.
       const heading = (await dialog.locator('h2').first().textContent()).trim();
       const index = SETUP_STEPS.findIndex(step => productText(step) === heading);
       if (index === target) break;
-      await dialog.getByRole('button', { name: productText(index < target ? 'Continue' : 'Back'), exact: true }).click();
+      await activateControl(dialog.getByRole('button', { name: productText(index < target ? 'Continue' : 'Back'), exact: true }), keyboardOnly);
     }
   }
   await dialog.locator('h2', { hasText: productText(label) }).first().waitFor();
@@ -81,9 +81,9 @@ export async function saveProviderKey(page, provider, key) {
 /** Save a key for the default Claude participant and verify it with one request. */
 export async function verifyDefaultClaude(page, key, keyboardOnly = false) {
   await openSetup(page, keyboardOnly);
-  await setupStep(page, 'Provider keys');
+  await setupStep(page, 'Provider keys', keyboardOnly);
   await saveProviderKey(page, 'Claude (Anthropic)', key);
-  await setupStep(page, 'Participants');
+  await setupStep(page, 'Participants', keyboardOnly);
   await activateControl(setupDialog(page).getByRole('button', { name: productText('Verify model for Agent 1 (1 request)'), exact: true }), keyboardOnly);
   await setupDialog(page).getByText(productText('Verified in this tab'), { exact: true }).waitFor();
 }
